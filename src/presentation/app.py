@@ -13,6 +13,7 @@ from src.infrastructure.repositories.remoteok_repo import RemoteOKJobRepository
 from src.infrastructure.repositories.rss_repo import RSSJobRepository
 from src.infrastructure.repositories.remotive_repo import RemotiveJobRepository
 from src.infrastructure.repositories.arbeitnow_repo import ArbeitnowJobRepository
+from src.infrastructure.repositories.jobicy_repo import JobicyJobRepository
 from src.infrastructure.repositories.csv_repo import CSVApplicationRepository
 from src.infrastructure.services.gemini_service import GeminiLLMService
 from src.infrastructure.services.pdf_service import PDFService
@@ -26,6 +27,7 @@ remoteok_repo = RemoteOKJobRepository()
 weworkremotely_repo = RSSJobRepository(feed_url="https://weworkremotely.com/categories/remote-programming-jobs.rss", platform_name="WeWorkRemotely")
 remotive_repo = RemotiveJobRepository()
 arbeitnow_repo = ArbeitnowJobRepository()
+jobicy_repo = JobicyJobRepository()
 
 app_repo = CSVApplicationRepository()
 llm_service = GeminiLLMService()
@@ -37,6 +39,7 @@ AVAILABLE_PLATFORMS = {
     "WeWorkRemotely": weworkremotely_repo,
     "Remotive": remotive_repo,
     "Arbeitnow": arbeitnow_repo,
+    "Jobicy": jobicy_repo,
     # "LinkedIn": None, # Placeholder for future
 }
 
@@ -112,6 +115,8 @@ with st.sidebar:
             selected_platform_names.append("Remotive")
         if st.checkbox("Arbeitnow", value=True):
             selected_platform_names.append("Arbeitnow")
+        if st.checkbox("Jobicy", value=True):
+            selected_platform_names.append("Jobicy")
         if st.checkbox("LinkedIn (Soon)", value=False, disabled=True):
             pass
             

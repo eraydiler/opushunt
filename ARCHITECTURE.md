@@ -30,6 +30,7 @@ Contains the business logic (Use Cases). It orchestrates the flow of data betwee
 
 *   **`use_cases.py`**:
     *   `SearchJobsUseCase`: Coordinates fetching jobs from multiple repositories.
+    *   `AIFilterJobsUseCase`: Coordinates the AI-driven semantic filtering of jobs based on the user's resume and keywords.
     *   `GenerateCoverLetterUseCase`: Uses the LLM service to create a tailored cover letter.
     *   `ApplyJobUseCase`: Handles the logic of recording a job application.
 
@@ -38,9 +39,13 @@ Implements the interfaces defined in the Domain layer. This layer interacts with
 
 *   **Repositories (`src/infrastructure/repositories`)**:
     *   `remoteok_repo.py`: Implements `JobRepository`. Fetches jobs from the RemoteOK API.
+    *   `remotive_repo.py`: Implements `JobRepository`. Fetches jobs from the Remotive API.
+    *   `arbeitnow_repo.py`: Implements `JobRepository`. Fetches jobs from the Arbeitnow API.
+    *   `jobicy_repo.py`: Implements `JobRepository`. Fetches global remote jobs from the Jobicy API (Aggregator).
+    *   `rss_repo.py`: Implements `JobRepository`. A generic XML/RSS feed parser for platforms like WeWorkRemotely.
     *   `csv_repo.py`: Implements `ApplicationRepository`. Saves/reads application history from a CSV file.
 *   **Services (`src/infrastructure/services`)**:
-    *   `gemini_service.py`: Implements `LLMService`. Uses Google's Gemini 2.5/Flash models to generate text.
+    *   `gemini_service.py`: Implements `LLMService`. Uses Google's Gemini models to generate cover letters and perform AI semantic filtering of jobs.
     *   `pdf_service.py`: Handles PDF file parsing (e.g., extracting text from uploaded resumes).
 
 ## 4. Presentation Layer (`src/presentation`)
