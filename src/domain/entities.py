@@ -11,6 +11,7 @@ class Job:
     location: str = "Remote"
     apply_url: Optional[str] = None
     date: Optional[str] = None
+    source: str = "Unknown" # Added source field
 
 @dataclass
 class Resume:

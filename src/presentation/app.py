@@ -8,6 +8,9 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")
 from dotenv import load_dotenv
 from src.domain.entities import Resume
 from src.infrastructure.repositories.remoteok_repo import RemoteOKJobRepository
+from src.infrastructure.repositories.rss_repo import RSSJobRepository
+from src.infrastructure.repositories.remotive_repo import RemotiveJobRepository
+from src.infrastructure.repositories.arbeitnow_repo import ArbeitnowJobRepository
 from src.infrastructure.repositories.csv_repo import CSVApplicationRepository
 from src.infrastructure.services.gemini_service import GeminiLLMService
 from src.infrastructure.services.pdf_service import PDFService
@@ -18,6 +21,10 @@ load_dotenv()
 
 # Repositories & Services
 remoteok_repo = RemoteOKJobRepository()
+weworkremotely_repo = RSSJobRepository(feed_url="https://weworkremotely.com/categories/remote-programming-jobs.rss", platform_name="WeWorkRemotely")
+remotive_repo = RemotiveJobRepository()
+arbeitnow_repo = ArbeitnowJobRepository()
+
 app_repo = CSVApplicationRepository()
 llm_service = GeminiLLMService()
 pdf_service = PDFService()
@@ -25,8 +32,10 @@ pdf_service = PDFService()
 # Services Map (for UI selection)
 AVAILABLE_PLATFORMS = {
     "RemoteOK": remoteok_repo,
+    "WeWorkRemotely": weworkremotely_repo,
+    "Remotive": remotive_repo,
+    "Arbeitnow": arbeitnow_repo,
     # "LinkedIn": None, # Placeholder for future
-    # "Indeed": None,   # Placeholder for future
 }
 
 # Use Cases (Initialized dynamically in UI)
@@ -81,7 +90,13 @@ with st.sidebar:
     with col_p1:
         if st.checkbox("RemoteOK", value=True):
             selected_platform_names.append("RemoteOK")
+        if st.checkbox("WeWorkRemotely", value=True):
+            selected_platform_names.append("WeWorkRemotely")
     with col_p2:
+        if st.checkbox("Remotive", value=True):
+            selected_platform_names.append("Remotive")
+        if st.checkbox("Arbeitnow", value=True):
+            selected_platform_names.append("Arbeitnow")
         if st.checkbox("LinkedIn (Soon)", value=False, disabled=True):
             pass
             
@@ -111,6 +126,10 @@ with tab1:
     st.divider()
 
     if st.button("Fetch Jobs", type="primary"):
+        # Explicitly clear the jobs from session state before fetching new ones
+        if 'jobs' in st.session_state:
+            del st.session_state['jobs']
+            
         if not selected_platform_names:
             st.warning("Please select at least one platform.")
         else:
@@ -125,7 +144,16 @@ with tab1:
 
     if 'jobs' in st.session_state:
         for job in st.session_state['jobs']:
+            # Skip invalid/empty jobs
+            if not job.position or job.position == "Unknown" or not job.company:
+                continue
+                
+            # Safely get source to prevent AttributeError from old cached objects
+            job_source = getattr(job, 'source', 'Unknown')
+            job_date = getattr(job, 'date', None)
+                
             with st.expander(f"{job.position} @ {job.company} ({job.location})"):
+                st.caption(f"Source: **{job_source}** | Date: {job_date if job_date else 'N/A'}")
                 col1, col2 = st.columns([2, 1])
                 
                 with col1:

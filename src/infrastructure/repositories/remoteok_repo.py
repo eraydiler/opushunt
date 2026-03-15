@@ -48,7 +48,8 @@ class RemoteOKJobRepository(JobRepository):
                             url=item.get('url', ''),
                             location=item.get('location', 'Remote'),
                             apply_url=item.get('apply_url'),
-                            date=item.get('date', '')
+                            date=item.get('date', ''),
+                            source="RemoteOK"
                         )
             except Exception as e:
                 print(f"Error fetching jobs for tag '{current_tag}': {e}")
