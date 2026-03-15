@@ -1,4 +1,5 @@
 import requests
+import re
 from typing import List
 from src.domain.entities import Job
 from src.domain.interfaces import JobRepository
@@ -31,13 +32,14 @@ class ArbeitnowJobRepository(JobRepository):
                     description = item.get('description', '')
                     text_to_search = (title + " " + description).lower()
                     
-                    # Check if it matches tags
+                    # Check if it matches tags strictly (whole word matching)
                     matches_tag = False
                     if not tags:
                         matches_tag = True
                     else:
                         for t in tags:
-                            if t in text_to_search:
+                            pattern = r'(?<![a-zA-Z0-9_])' + re.escape(t) + r'(?![a-zA-Z0-9_])'
+                            if re.search(pattern, text_to_search, re.IGNORECASE):
                                 matches_tag = True
                                 break
                                 

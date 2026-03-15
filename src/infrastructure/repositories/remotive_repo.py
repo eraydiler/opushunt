@@ -1,4 +1,5 @@
 import requests
+import re
 from typing import List
 from src.domain.entities import Job
 from src.domain.interfaces import JobRepository
@@ -32,6 +33,21 @@ class RemotiveJobRepository(JobRepository):
                 for item in raw_jobs:
                     job_id = str(item.get('id', ''))
                     if not job_id:
+                        continue
+                        
+                    # Strict local filtering to ensure relevance
+                    title = item.get('title', '')
+                    description = item.get('description', '')
+                    text_to_search = (title + " " + description).lower()
+                    
+                    matches_tag = False
+                    for t in tags:
+                        pattern = r'(?<![a-zA-Z0-9_])' + re.escape(t) + r'(?![a-zA-Z0-9_])'
+                        if re.search(pattern, text_to_search, re.IGNORECASE):
+                            matches_tag = True
+                            break
+                            
+                    if not matches_tag:
                         continue
                         
                     if job_id not in all_jobs:
