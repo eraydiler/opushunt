@@ -1,0 +1,23 @@
+# Environment Variables
+.env
+
+# Virtual Environment
+venv/
+env/
+.venv/
+
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Mac OS
+.DS_Store
+
+# Local Data (User specific)
+resume.txt
+applications_history.csv
+
+# IDE & Editors
+.vscode/
+.idea/
