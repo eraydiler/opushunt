@@ -14,6 +14,8 @@ from src.infrastructure.repositories.rss_repo import RSSJobRepository
 from src.infrastructure.repositories.remotive_repo import RemotiveJobRepository
 from src.infrastructure.repositories.arbeitnow_repo import ArbeitnowJobRepository
 from src.infrastructure.repositories.jobicy_repo import JobicyJobRepository
+from src.infrastructure.repositories.thehub_repo import TheHubJobRepository
+from src.infrastructure.repositories.rss_repo import RSSJobRepository
 from src.infrastructure.repositories.csv_repo import CSVApplicationRepository
 from src.infrastructure.services.gemini_service import GeminiLLMService
 from src.infrastructure.services.pdf_service import PDFService
@@ -28,6 +30,7 @@ weworkremotely_repo = RSSJobRepository(feed_url="https://weworkremotely.com/cate
 remotive_repo = RemotiveJobRepository()
 arbeitnow_repo = ArbeitnowJobRepository()
 jobicy_repo = JobicyJobRepository()
+thehub_repo = TheHubJobRepository()
 
 app_repo = CSVApplicationRepository()
 llm_service = GeminiLLMService()
@@ -40,6 +43,7 @@ AVAILABLE_PLATFORMS = {
     "Remotive": remotive_repo,
     "Arbeitnow": arbeitnow_repo,
     "Jobicy": jobicy_repo,
+    "TheHub": thehub_repo,
     # "LinkedIn": None, # Placeholder for future
 }
 
@@ -110,6 +114,7 @@ with st.sidebar:
             selected_platform_names.append("RemoteOK")
         if st.checkbox("WeWorkRemotely", value=True):
             selected_platform_names.append("WeWorkRemotely")
+        # SwiftLee blog feed removed as it returns articles, not jobs
     with col_p2:
         if st.checkbox("Remotive", value=True):
             selected_platform_names.append("Remotive")
@@ -117,6 +122,8 @@ with st.sidebar:
             selected_platform_names.append("Arbeitnow")
         if st.checkbox("Jobicy", value=True):
             selected_platform_names.append("Jobicy")
+        if st.checkbox("TheHub", value=True):
+            selected_platform_names.append("TheHub")
         if st.checkbox("LinkedIn (Soon)", value=False, disabled=True):
             pass
             
