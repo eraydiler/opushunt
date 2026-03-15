@@ -1,6 +1,8 @@
 import streamlit as st
 import os
 import sys
+import html
+from bs4 import BeautifulSoup
 
 # Add project root to path so we can import modules
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
@@ -49,6 +51,18 @@ def load_resume():
             return f.read()
     except FileNotFoundError:
         return ""
+
+def clean_html_text(raw_html: str) -> str:
+    """Removes HTML tags and unescapes HTML entities to fix garbled characters."""
+    if not raw_html:
+        return ""
+    # Unescape HTML entities (e.g., &amp;, &#8217;)
+    unescaped = html.unescape(raw_html)
+    # Use BeautifulSoup to strip all HTML tags gracefully
+    soup = BeautifulSoup(unescaped, "html.parser")
+    # Get text, separating blocks with a space
+    clean_text = soup.get_text(separator=' ', strip=True)
+    return clean_text
 
 # --- Streamlit App ---
 st.set_page_config(page_title="OpusHunt | Find Your Masterpiece", page_icon="🎯", layout="wide")
@@ -158,9 +172,9 @@ with tab1:
                 
                 with col1:
                     st.markdown(f"**Description Snippet:**")
-                    # Clean HTML tags roughly for display
-                    clean_desc = job.description.replace("<p>", "").replace("</p>", "\n").replace("<br>", "\n")
-                    st.text(clean_desc[:500] + "...")
+                    # Clean HTML tags and decode HTML entities for display
+                    clean_desc = clean_html_text(job.description)
+                    st.text(clean_desc[:500] + ("..." if len(clean_desc) > 500 else ""))
                     st.markdown(f"[View Full Job Listing]({job.url})")
                 
                 with col2:
