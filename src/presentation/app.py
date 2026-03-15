@@ -15,7 +15,7 @@ from src.infrastructure.repositories.remotive_repo import RemotiveJobRepository
 from src.infrastructure.repositories.arbeitnow_repo import ArbeitnowJobRepository
 from src.infrastructure.repositories.jobicy_repo import JobicyJobRepository
 from src.infrastructure.repositories.thehub_repo import TheHubJobRepository
-from src.infrastructure.repositories.rss_repo import RSSJobRepository
+from src.infrastructure.repositories.hn_repo import HackerNewsJobRepository
 from src.infrastructure.repositories.csv_repo import CSVApplicationRepository
 from src.infrastructure.services.gemini_service import GeminiLLMService
 from src.infrastructure.services.pdf_service import PDFService
@@ -31,6 +31,7 @@ remotive_repo = RemotiveJobRepository()
 arbeitnow_repo = ArbeitnowJobRepository()
 jobicy_repo = JobicyJobRepository()
 thehub_repo = TheHubJobRepository()
+hn_repo = HackerNewsJobRepository()
 
 app_repo = CSVApplicationRepository()
 llm_service = GeminiLLMService()
@@ -44,6 +45,7 @@ AVAILABLE_PLATFORMS = {
     "Arbeitnow": arbeitnow_repo,
     "Jobicy": jobicy_repo,
     "TheHub": thehub_repo,
+    "Hacker News": hn_repo,
     # "LinkedIn": None, # Placeholder for future
 }
 
@@ -124,6 +126,8 @@ with st.sidebar:
             selected_platform_names.append("Jobicy")
         if st.checkbox("TheHub", value=True):
             selected_platform_names.append("TheHub")
+        if st.checkbox("Hacker News", value=True):
+            selected_platform_names.append("Hacker News")
         if st.checkbox("LinkedIn (Soon)", value=False, disabled=True):
             pass
             
@@ -189,23 +193,35 @@ with tab1:
             job_source = getattr(job, 'source', 'Unknown')
             job_date = getattr(job, 'date', None)
                 
-            with st.expander(f"{job.position} @ {job.company} ({job.location})"):
-                st.caption(f"Source: **{job_source}** | Date: {job_date if job_date else 'N/A'}")
-                col1, col2 = st.columns([2, 1])
-                
+            with st.expander(f"{job.position} @ {job.company} ({job_source})"):
+                col1, col2 = st.columns([3, 1])
                 with col1:
-                    st.markdown(f"**Description Snippet:**")
-                    # Clean HTML tags and decode HTML entities for display
-                    clean_desc = clean_html_text(job.description)
-                    st.text(clean_desc[:500] + ("..." if len(clean_desc) > 500 else ""))
-                    st.markdown(f"[View Full Job Listing]({job.url})")
-                
+                    st.markdown(f"**Location:** {job.location}")
                 with col2:
-                    if st.button(f"Generate Cover Letter ✨", key=f"btn_{job.id}"):
-                        resume_obj = Resume(content=resume_content)
-                        with st.spinner("AI is writing your letter..."):
-                            letter = generate_cl_uc.execute(job, resume_obj)
-                            st.session_state[f"cl_{job.id}"] = letter
+                    st.markdown(f"[Apply Now 🚀]({job.url})")
+                
+                # Description Handling
+                if job.description:
+                    # Create a tabbed view for Summary (Text) and Full (HTML)
+                    tab_summary, tab_full = st.tabs(["📝 Summary", "📄 Full Description"])
+                    
+                    with tab_summary:
+                        clean_desc = clean_html_text(job.description)
+                        st.write(clean_desc[:500] + "..." if len(clean_desc) > 500 else clean_desc)
+                    
+                    with tab_full:
+                        # Render HTML safely
+                        st.markdown(job.description, unsafe_allow_html=True)
+                else:
+                    st.info("No description available.")
+
+                st.divider()
+                
+                if st.button("Generate Cover Letter", key=f"btn_{job.id}"):
+                    resume_obj = Resume(content=resume_content)
+                    with st.spinner("AI is writing your letter..."):
+                        letter = generate_cl_uc.execute(job, resume_obj)
+                        st.session_state[f"cl_{job.id}"] = letter
                 
                 # Show Cover Letter if generated
                 if f"cl_{job.id}" in st.session_state:
