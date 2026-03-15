@@ -16,6 +16,16 @@ class SearchJobsUseCase:
                 print(f"Error fetching from repo: {e}")
         return all_jobs
 
+class AIFilterJobsUseCase:
+    def __init__(self, llm_service: LLMService):
+        self.service = llm_service
+        
+    def execute(self, jobs: List[Job], resume: Resume, tags: str) -> List[Job]:
+        # If no LLM service or method doesn't exist, just return jobs
+        if not hasattr(self.service, 'filter_relevant_jobs'):
+            return jobs
+        return self.service.filter_relevant_jobs(jobs, resume, tags)
+
 class GenerateCoverLetterUseCase:
     def __init__(self, llm_service: LLMService):
         self.service = llm_service

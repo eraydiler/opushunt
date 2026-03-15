@@ -16,7 +16,7 @@ from src.infrastructure.repositories.arbeitnow_repo import ArbeitnowJobRepositor
 from src.infrastructure.repositories.csv_repo import CSVApplicationRepository
 from src.infrastructure.services.gemini_service import GeminiLLMService
 from src.infrastructure.services.pdf_service import PDFService
-from src.application.use_cases import SearchJobsUseCase, GenerateCoverLetterUseCase, ApplyJobUseCase
+from src.application.use_cases import SearchJobsUseCase, GenerateCoverLetterUseCase, ApplyJobUseCase, AIFilterJobsUseCase
 
 # --- Setup & Injection ---
 load_dotenv()
@@ -43,6 +43,7 @@ AVAILABLE_PLATFORMS = {
 # Use Cases (Initialized dynamically in UI)
 generate_cl_uc = GenerateCoverLetterUseCase(llm_service)
 apply_job_uc = ApplyJobUseCase(app_repo)
+ai_filter_uc = AIFilterJobsUseCase(llm_service)
 
 # --- UI Helper Functions ---
 def load_resume():
@@ -117,6 +118,10 @@ with st.sidebar:
     # Keywords
     st.subheader("Keywords")
     search_tag = st.text_input("Enter tags (comma separated)", value="ios, swift")
+    
+    st.divider()
+    st.header("🧠 Smart Features")
+    use_ai_filter = st.checkbox("AI Smart Filter", value=True, help="Uses Gemini to read the job description and compare it with your CV. Hides irrelevant jobs like HR, QA, Customer Success. (Takes a bit longer to fetch)")
 
 # Main Content
 tab1, tab2 = st.tabs(["🔍 Search Jobs", "📜 Application History"])
@@ -153,8 +158,14 @@ with tab1:
             
             with st.spinner(f"Fetching jobs from {', '.join(selected_platform_names)}..."):
                 jobs = search_jobs_uc.execute(search_tag)
-                st.session_state['jobs'] = jobs
-                st.success(f"Found {len(jobs)} jobs.")
+                
+            if use_ai_filter and jobs:
+                with st.spinner(f"🤖 AI is analyzing {len(jobs)} jobs to find the best match for your CV..."):
+                    resume_obj = Resume(content=resume_content)
+                    jobs = ai_filter_uc.execute(jobs, resume_obj, search_tag)
+                    
+            st.session_state['jobs'] = jobs
+            st.success(f"Found {len(jobs)} jobs.")
 
     if 'jobs' in st.session_state:
         for job in st.session_state['jobs']:
