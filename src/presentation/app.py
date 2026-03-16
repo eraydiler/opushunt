@@ -56,11 +56,10 @@ ai_filter_uc = AIFilterJobsUseCase(llm_service)
 
 # --- UI Helper Functions ---
 def load_resume():
-    try:
-        with open("resume.txt", "r") as f:
-            return f.read()
-    except FileNotFoundError:
-        return ""
+    # Load from session state instead of file
+    if 'resume_content' in st.session_state:
+        return st.session_state['resume_content']
+    return ""
 
 def clean_html_text(raw_html: str) -> str:
     """Removes HTML tags and unescapes HTML entities to fix garbled characters."""
@@ -98,10 +97,13 @@ with st.sidebar:
     
     resume_content = st.text_area("Resume Content (Editable)", value=current_resume, height=300)
     
-    if st.button("Save Resume"):
-        with open("resume.txt", "w") as f:
-            f.write(resume_content)
-        st.success("Resume saved!")
+    if st.button("Save Resume (Session)"):
+        st.session_state['resume_content'] = resume_content
+        st.success("Resume saved for this session!")
+    
+    # Persist in session state if not explicitly saved but edited
+    if resume_content:
+        st.session_state['resume_content'] = resume_content
     
     st.divider()
     st.header("⚙️ Search Settings")
