@@ -28,3 +28,12 @@ class SessionApplicationRepository(ApplicationRepository):
 
     def get_applications(self) -> List[dict]:
         return st.session_state.get('application_history', [])
+
+    def load_history(self, history: List[dict]):
+        """Imports history from an external source (e.g., CSV upload)."""
+        if 'application_history' not in st.session_state:
+            st.session_state['application_history'] = []
+            
+        # Optional: Check for duplicates before appending?
+        # For simplicity, we just extend. User can clear history by refreshing page.
+        st.session_state['application_history'].extend(history)

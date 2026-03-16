@@ -20,3 +20,7 @@ class ApplicationRepository(ABC):
     @abstractmethod
     def get_applications(self) -> List[dict]:
         pass
+
+    def load_history(self, history: List[dict]):
+        """Optional method to load history. Default implementation does nothing."""
+        pass

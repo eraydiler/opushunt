@@ -2,6 +2,8 @@ import streamlit as st
 import os
 import sys
 import html
+import pandas as pd
+import importlib
 from bs4 import BeautifulSoup
 
 # Add project root to path so we can import modules
@@ -16,6 +18,9 @@ from src.infrastructure.repositories.arbeitnow_repo import ArbeitnowJobRepositor
 from src.infrastructure.repositories.jobicy_repo import JobicyJobRepository
 from src.infrastructure.repositories.thehub_repo import TheHubJobRepository
 from src.infrastructure.repositories.hn_repo import HackerNewsJobRepository
+import src.infrastructure.repositories.csv_repo as csv_repo_module
+# Force reload to ensure latest class definition is used
+importlib.reload(csv_repo_module)
 from src.infrastructure.repositories.csv_repo import SessionApplicationRepository
 from src.infrastructure.services.gemini_service import GeminiLLMService
 from src.infrastructure.services.pdf_service import PDFService
@@ -188,6 +193,14 @@ with tab1:
             st.success(f"Found {len(jobs)} jobs.")
 
     if 'jobs' in st.session_state:
+        # Get history to check for duplicates
+        history = apply_job_uc.get_history()
+        # Create a set of applied job URLs for fast lookup
+        applied_urls = set()
+        for h in history:
+            if h.get('URL'):
+                applied_urls.add(h.get('URL'))
+        
         for job in st.session_state['jobs']:
             # Skip invalid/empty jobs
             if not job.position or job.position == "Unknown" or not job.company:
@@ -196,8 +209,20 @@ with tab1:
             # Safely get source to prevent AttributeError from old cached objects
             job_source = getattr(job, 'source', 'Unknown')
             job_date = getattr(job, 'date', None)
+            
+            # Check if applied
+            is_applied = job.url in applied_urls
+            
+            # Visual Indicator for Applied Jobs
+            if is_applied:
+                 expander_title = f"✅ {job.position} @ {job.company} ({job_source})"
+            else:
+                 expander_title = f"{job.position} @ {job.company} ({job_source})"
                 
-            with st.expander(f"{job.position} @ {job.company} ({job_source})"):
+            with st.expander(expander_title):
+                if is_applied:
+                    st.success("You have already applied to this position! (Check History)")
+                    
                 col1, col2 = st.columns([3, 1])
                 with col1:
                     st.markdown(f"**Location:** {job.location}")
@@ -241,8 +266,44 @@ with tab1:
 with tab2:
     st.header("History")
     history = apply_job_uc.get_history()
+    
     if history:
         st.dataframe(history)
+        
+        # Convert list of dicts to CSV string
+        import pandas as pd
+        df = pd.DataFrame(history)
+        csv_data = df.to_csv(index=False).encode('utf-8')
+        
+        st.download_button(
+            label="Download History as CSV",
+            data=csv_data,
+            file_name="application_history.csv",
+            mime="text/csv",
+        )
     else:
         st.info("No applications recorded yet.")
+        
+    st.divider()
+    with st.expander("📥 Import History"):
+        st.markdown("Upload a previously downloaded `application_history.csv` to restore your application logs.")
+        uploaded_history = st.file_uploader("Upload CSV", type=["csv"], key="history_uploader")
+        
+        if uploaded_history is not None:
+            if st.button("Import Records"):
+                try:
+                    import pandas as pd
+                    df = pd.read_csv(uploaded_history)
+                    # Convert NaN to None or empty string to avoid JSON errors if any
+                    df = df.fillna("")
+                    history_data = df.to_dict('records')
+                    
+                    if hasattr(app_repo, 'load_history'):
+                        app_repo.load_history(history_data)
+                        st.success(f"Successfully imported {len(history_data)} applications!")
+                        st.rerun()
+                    else:
+                        st.error("Repository does not support history loading.")
+                except Exception as e:
+                    st.error(f"Error importing file: {e}")
 
