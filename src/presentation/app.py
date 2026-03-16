@@ -110,26 +110,28 @@ with st.sidebar:
     st.subheader("Platforms")
     selected_platform_names = []
     
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        if st.checkbox("RemoteOK", value=True):
-            selected_platform_names.append("RemoteOK")
-        if st.checkbox("WeWorkRemotely", value=True):
-            selected_platform_names.append("WeWorkRemotely")
-        # SwiftLee blog feed removed as it returns articles, not jobs
-    with col_p2:
-        if st.checkbox("Remotive", value=True):
-            selected_platform_names.append("Remotive")
-        if st.checkbox("Arbeitnow", value=True):
-            selected_platform_names.append("Arbeitnow")
-        if st.checkbox("Jobicy", value=True):
-            selected_platform_names.append("Jobicy")
-        if st.checkbox("TheHub", value=True):
-            selected_platform_names.append("TheHub")
-        if st.checkbox("Hacker News", value=True):
-            selected_platform_names.append("Hacker News")
-        if st.checkbox("LinkedIn (Soon)", value=False, disabled=True):
-            pass
+    # Define available platforms for cleaner rendering
+    platforms_list = [
+        "RemoteOK",
+        "WeWorkRemotely",
+        "Remotive",
+        "Arbeitnow",
+        "Jobicy",
+        "TheHub",
+        "Hacker News"
+    ]
+    
+    # Dynamic column distribution
+    cols = st.columns(2)
+    for i, platform in enumerate(platforms_list):
+        col = cols[i % 2]
+        with col:
+            if st.checkbox(platform, value=True):
+                selected_platform_names.append(platform)
+                
+    # Future placeholder
+    with cols[1]:
+        st.checkbox("LinkedIn (Soon)", value=False, disabled=True)
             
     # Keywords
     st.subheader("Keywords")
