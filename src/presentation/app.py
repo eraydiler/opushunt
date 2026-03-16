@@ -2,6 +2,7 @@ import streamlit as st
 import os
 import sys
 import html
+import json
 import pandas as pd
 import importlib
 from bs4 import BeautifulSoup
@@ -81,12 +82,79 @@ def clean_html_text(raw_html: str) -> str:
 # --- Streamlit App ---
 st.set_page_config(page_title="OpusHunt | Find Your Masterpiece", page_icon="🎯", layout="wide")
 
+# --- Session Management Logic (Must run before widgets) ---
+# Initialize session state keys if not present
+if "resume_content" not in st.session_state:
+    st.session_state["resume_content"] = ""
+if "search_keywords" not in st.session_state:
+    st.session_state["search_keywords"] = "ios, swift"
+if "use_ai_filter" not in st.session_state:
+    st.session_state["use_ai_filter"] = True
+    
+# Define available platforms for cleaner rendering
+platforms_list = [
+    "RemoteOK",
+    "WeWorkRemotely",
+    "Remotive",
+    "Arbeitnow",
+    "Jobicy",
+    "TheHub",
+    "Hacker News"
+]
+for p in platforms_list:
+    if f"platform_{p}" not in st.session_state:
+        st.session_state[f"platform_{p}"] = True
+
+# Handle Session Import
+if "uploaded_session_file" not in st.session_state:
+    st.session_state["uploaded_session_file"] = None
+
+def load_session_callback():
+    uploaded_file = st.session_state.get("session_uploader")
+    if uploaded_file is not None:
+        try:
+            data = json.load(uploaded_file)
+            
+            # Update Session State
+            st.session_state["resume_content"] = data.get("resume_content", "")
+            st.session_state["search_keywords"] = data.get("search_keywords", "")
+            st.session_state["use_ai_filter"] = data.get("use_ai_filter", True)
+            
+            p_states = data.get("platform_states", {})
+            for p, state in p_states.items():
+                st.session_state[f"platform_{p}"] = state
+                
+            history = data.get("application_history", [])
+            if hasattr(app_repo, 'load_history'):
+                app_repo.load_history(history)
+            
+            st.toast("Session loaded successfully! 🎉", icon="✅")
+        except Exception as e:
+            st.error(f"Error loading session: {e}")
+
 st.title("🎯 OpusHunt")
 st.markdown("Find the job that fits your masterpiece.")
 
 # Sidebar: Configuration & Resume
 with st.sidebar:
     st.header("👤 Your Profile")
+    
+    # Session Management (Moved to top for better UX)
+    with st.expander("💾 Session Management", expanded=False):
+        st.info("Save/Restore workspace (CV, History, Settings).")
+        
+        # Import
+        st.file_uploader(
+            "Import Session (JSON)", 
+            type=["json"], 
+            key="session_uploader", 
+            on_change=load_session_callback
+        )
+        
+        # Placeholder for Export Button (populated at the end of script)
+        export_placeholder = st.empty()
+    
+    st.divider()
     
     # File Uploader for PDF
     uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
@@ -98,17 +166,11 @@ with st.sidebar:
             extracted_text = pdf_service.extract_text(uploaded_file.getvalue())
             if extracted_text:
                 current_resume = extracted_text
+                st.session_state["resume_content"] = current_resume # Update state directly
                 st.success("PDF loaded successfully!")
     
-    resume_content = st.text_area("Resume Content (Editable)", value=current_resume, height=300)
-    
-    if st.button("Save Resume (Session)"):
-        st.session_state['resume_content'] = resume_content
-        st.success("Resume saved for this session!")
-    
-    # Persist in session state if not explicitly saved but edited
-    if resume_content:
-        st.session_state['resume_content'] = resume_content
+    # Resume Text Area (Bound to session state)
+    st.text_area("Resume Content (Editable)", key="resume_content", height=300)
     
     st.divider()
     st.header("⚙️ Search Settings")
@@ -117,23 +179,14 @@ with st.sidebar:
     st.subheader("Platforms")
     selected_platform_names = []
     
-    # Define available platforms for cleaner rendering
-    platforms_list = [
-        "RemoteOK",
-        "WeWorkRemotely",
-        "Remotive",
-        "Arbeitnow",
-        "Jobicy",
-        "TheHub",
-        "Hacker News"
-    ]
-    
     # Dynamic column distribution
     cols = st.columns(2)
     for i, platform in enumerate(platforms_list):
         col = cols[i % 2]
         with col:
-            if st.checkbox(platform, value=True):
+            # Bind checkbox state to session_state keys for persistence
+            platform_key = f"platform_{platform}"
+            if st.checkbox(platform, key=platform_key):
                 selected_platform_names.append(platform)
                 
     # Future placeholder
@@ -142,11 +195,12 @@ with st.sidebar:
             
     # Keywords
     st.subheader("Keywords")
-    search_tag = st.text_input("Enter tags (comma separated)", value="ios, swift")
+    # Bind to session_state key
+    search_tag = st.text_input("Enter tags (comma separated)", key="search_keywords")
     
     st.divider()
     st.header("🧠 Smart Features")
-    use_ai_filter = st.checkbox("AI Smart Filter", value=True, help="Uses Gemini to read the job description and compare it with your CV. Hides irrelevant jobs like HR, QA, Customer Success. (Takes a bit longer to fetch)")
+    use_ai_filter = st.checkbox("AI Smart Filter", help="Uses Gemini to read the job description and compare it with your CV. Hides irrelevant jobs like HR, QA, Customer Success. (Takes a bit longer to fetch)", key="use_ai_filter")
 
 # Main Content
 tab1, tab2 = st.tabs(["🔍 Search Jobs", "📜 Application History"])
@@ -185,8 +239,10 @@ with tab1:
                 jobs = search_jobs_uc.execute(search_tag)
                 
             if use_ai_filter and jobs:
+                # Use session state for resume content
+                resume_text = st.session_state.get("resume_content", "")
                 with st.spinner(f"🤖 AI is analyzing {len(jobs)} jobs to find the best match for your CV..."):
-                    resume_obj = Resume(content=resume_content)
+                    resume_obj = Resume(content=resume_text)
                     jobs = ai_filter_uc.execute(jobs, resume_obj, search_tag)
                     
             st.session_state['jobs'] = jobs
@@ -247,7 +303,9 @@ with tab1:
                 st.divider()
                 
                 if st.button("Generate Cover Letter", key=f"btn_{job.id}"):
-                    resume_obj = Resume(content=resume_content)
+                    # Use session state for resume content
+                    resume_text = st.session_state.get("resume_content", "")
+                    resume_obj = Resume(content=resume_text)
                     with st.spinner("AI is writing your letter..."):
                         letter = generate_cl_uc.execute(job, resume_obj)
                         st.session_state[f"cl_{job.id}"] = letter
@@ -269,41 +327,28 @@ with tab2:
     
     if history:
         st.dataframe(history)
-        
-        # Convert list of dicts to CSV string
-        import pandas as pd
-        df = pd.DataFrame(history)
-        csv_data = df.to_csv(index=False).encode('utf-8')
-        
-        st.download_button(
-            label="Download History as CSV",
-            data=csv_data,
-            file_name="application_history.csv",
-            mime="text/csv",
-        )
     else:
         st.info("No applications recorded yet.")
         
     st.divider()
-    with st.expander("📥 Import History"):
-        st.markdown("Upload a previously downloaded `application_history.csv` to restore your application logs.")
-        uploaded_history = st.file_uploader("Upload CSV", type=["csv"], key="history_uploader")
-        
-        if uploaded_history is not None:
-            if st.button("Import Records"):
-                try:
-                    import pandas as pd
-                    df = pd.read_csv(uploaded_history)
-                    # Convert NaN to None or empty string to avoid JSON errors if any
-                    df = df.fillna("")
-                    history_data = df.to_dict('records')
-                    
-                    if hasattr(app_repo, 'load_history'):
-                        app_repo.load_history(history_data)
-                        st.success(f"Successfully imported {len(history_data)} applications!")
-                        st.rerun()
-                    else:
-                        st.error("Repository does not support history loading.")
-                except Exception as e:
-                    st.error(f"Error importing file: {e}")
+    # Old Import/Export features removed in favor of Full Session Management
+    st.caption("Use the 'Session Management' in the sidebar to backup/restore your history along with settings.")
+
+# --- Finalize Export Button (Populate placeholder with latest state) ---
+with export_placeholder.container():
+    # Export
+    session_data = {
+        "resume_content": st.session_state.get("resume_content", ""),
+        "search_keywords": st.session_state.get("search_keywords", "ios, swift"),
+        "application_history": apply_job_uc.get_history(),
+        "use_ai_filter": st.session_state.get("use_ai_filter", True),
+        "platform_states": {p: st.session_state.get(f"platform_{p}", True) for p in platforms_list}
+    }
+    json_str = json.dumps(session_data, indent=2)
+    st.download_button(
+        label="Export Session (JSON)",
+        data=json_str,
+        file_name="opushunt_session.json",
+        mime="application/json"
+    )
 
