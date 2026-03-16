@@ -1,39 +1,30 @@
 import os
 import csv
+import streamlit as st
 from datetime import datetime
 from typing import List
 from src.domain.entities import Job
 from src.domain.interfaces import ApplicationRepository
 
-class CSVApplicationRepository(ApplicationRepository):
-    def __init__(self, filepath: str = "applications_history.csv"):
-        self.filepath = filepath
+class SessionApplicationRepository(ApplicationRepository):
+    """
+    Stores application history in Streamlit's Session State.
+    Data is lost when the browser tab is closed (secure for multi-user).
+    """
+    def __init__(self):
+        if 'application_history' not in st.session_state:
+            st.session_state['application_history'] = []
 
     def save_application(self, job: Job, status: str):
-        file_exists = os.path.isfile(self.filepath)
-        
-        with open(self.filepath, mode='a', newline='', encoding='utf-8') as file:
-            writer = csv.writer(file)
-            
-            if not file_exists:
-                writer.writerow(['Date', 'Company', 'Position', 'Location', 'URL', 'Status'])
-                
-            writer.writerow([
-                datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-                job.company,
-                job.position,
-                job.location,
-                job.url,
-                status
-            ])
+        record = {
+            'Date': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            'Company': job.company,
+            'Position': job.position,
+            'Location': job.location,
+            'URL': job.url,
+            'Status': status
+        }
+        st.session_state['application_history'].append(record)
 
     def get_applications(self) -> List[dict]:
-        if not os.path.isfile(self.filepath):
-            return []
-            
-        history = []
-        with open(self.filepath, mode='r', encoding='utf-8') as file:
-            reader = csv.DictReader(file)
-            for row in reader:
-                history.append(row)
-        return history
+        return st.session_state.get('application_history', [])

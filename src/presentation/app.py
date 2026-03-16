@@ -16,7 +16,7 @@ from src.infrastructure.repositories.arbeitnow_repo import ArbeitnowJobRepositor
 from src.infrastructure.repositories.jobicy_repo import JobicyJobRepository
 from src.infrastructure.repositories.thehub_repo import TheHubJobRepository
 from src.infrastructure.repositories.hn_repo import HackerNewsJobRepository
-from src.infrastructure.repositories.csv_repo import CSVApplicationRepository
+from src.infrastructure.repositories.csv_repo import SessionApplicationRepository
 from src.infrastructure.services.gemini_service import GeminiLLMService
 from src.infrastructure.services.pdf_service import PDFService
 from src.application.use_cases import SearchJobsUseCase, GenerateCoverLetterUseCase, ApplyJobUseCase, AIFilterJobsUseCase
@@ -33,7 +33,7 @@ jobicy_repo = JobicyJobRepository()
 thehub_repo = TheHubJobRepository()
 hn_repo = HackerNewsJobRepository()
 
-app_repo = CSVApplicationRepository()
+app_repo = SessionApplicationRepository()
 llm_service = GeminiLLMService()
 pdf_service = PDFService()
 
