@@ -4,4 +4,5 @@ python-dotenv
 requests
 beautifulsoup4
 pypdf
+pandas
 pytest
