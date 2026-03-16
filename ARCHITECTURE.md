@@ -43,7 +43,7 @@ Implements the interfaces defined in the Domain layer. This layer interacts with
     *   `arbeitnow_repo.py`: Implements `JobRepository`. Fetches jobs from the Arbeitnow API.
     *   `jobicy_repo.py`: Implements `JobRepository`. Fetches global remote jobs from the Jobicy API (Aggregator).
     *   `rss_repo.py`: Implements `JobRepository`. A generic XML/RSS feed parser for platforms like WeWorkRemotely.
-    *   `csv_repo.py`: Implements `ApplicationRepository`. Saves/reads application history from a CSV file.
+    *   `csv_repo.py`: Implements `ApplicationRepository`. Manages application history using **Session State** (in-memory) for privacy, instead of a persistent CSV file. Supports import/export of session data.
 *   **Services (`src/infrastructure/services`)**:
     *   `gemini_service.py`: Implements `LLMService`. Uses Google's Gemini models to generate cover letters and perform AI semantic filtering of jobs.
     *   `pdf_service.py`: Handles PDF file parsing (e.g., extracting text from uploaded resumes).
