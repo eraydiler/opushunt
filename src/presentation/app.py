@@ -274,8 +274,11 @@ with tab1:
                  expander_title = f"✅ {job.position} @ {job.company} ({job_source})"
             else:
                  expander_title = f"{job.position} @ {job.company} ({job_source})"
-                
-            with st.expander(expander_title):
+            
+            # Keep expanded if a cover letter is being drafted
+            should_expand = f"cl_{job.id}" in st.session_state
+            
+            with st.expander(expander_title, expanded=should_expand):
                 if is_applied:
                     st.success("You have already applied to this position! (Check History)")
                     
@@ -309,6 +312,7 @@ with tab1:
                     with st.spinner("AI is writing your letter..."):
                         letter = generate_cl_uc.execute(job, resume_obj)
                         st.session_state[f"cl_{job.id}"] = letter
+                        st.rerun()
                 
                 # Show Cover Letter if generated
                 if f"cl_{job.id}" in st.session_state:
@@ -318,6 +322,7 @@ with tab1:
                     if st.button("Mark as Applied ✅", key=f"apply_{job.id}"):
                         apply_job_uc.execute(job, status="Applied")
                         st.success(f"Application recorded for {job.company}!")
+                        st.rerun()
                         # Optionally open URL
                         # st.write(f"Go apply here: {job.url}")
 
