@@ -16,14 +16,15 @@ class HuntUKVisaSponsorsJobRepository(JobRepository):
             res = requests.get(job_url, headers=headers, timeout=10)
             if res.status_code == 200:
                 soup = BeautifulSoup(res.text, "html.parser")
-                # HuntUK job description is typically in the main content area. Let's look for prose classes
-                # Or just grab the main container after the title
-                desc_div = soup.find("div", class_="prose")
-                if desc_div:
-                    return str(desc_div)
-                # Fallback: maybe it's under a specific section
-                main_div = soup.find("main")
+                
+                # HuntUK job details are typically inside a max-w-[60ch] container
+                main_div = soup.find("div", class_=lambda c: c and "max-w-[60ch]" in c)
                 if main_div:
+                    # The description is usually the child div with the most text
+                    divs = main_div.find_all("div", recursive=False)
+                    for d in divs:
+                        if len(d.get_text(strip=True)) > 500:
+                            return str(d)
                     return str(main_div)
         except Exception:
             pass
