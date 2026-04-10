@@ -4,12 +4,32 @@ from typing import List
 from src.domain.entities import Job
 from src.domain.interfaces import JobRepository
 import re
+import concurrent.futures
 
 class VisaSponsorJobRepository(JobRepository):
     """
     Fetches jobs from visasponsor.jobs
     URL: https://visasponsor.jobs
     """
+    def _fetch_description(self, job_url: str, headers: dict) -> str:
+        try:
+            res = requests.get(job_url, headers=headers, timeout=10)
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, "html.parser")
+                # Look for a specific content area. Usually it's in a main container
+                main_div = soup.find("div", class_="container")
+                if main_div:
+                    # try to find the specific content div
+                    content_divs = main_div.find_all("div")
+                    for d in content_divs:
+                        # find div that has the text of description
+                        if len(d.get_text(strip=True)) > 200:
+                            return str(d)
+                    return str(main_div)
+        except Exception:
+            pass
+        return ""
+
     def fetch_jobs(self, tag: str = "ios") -> List[Job]:
         tags = [t.strip().lower() for t in tag.replace(';', ',').replace('|', ',').split(',') if t.strip()]
         all_jobs = {}
@@ -29,7 +49,7 @@ class VisaSponsorJobRepository(JobRepository):
                     soup = BeautifulSoup(response.text, "html.parser")
                     job_links = soup.find_all("a", href=lambda h: h and h.startswith("/api/jobs/") and len(h.split("/")) > 3)
                     
-                    for a_tag in job_links:
+                    def process_link(a_tag):
                         link = a_tag["href"]
                         if link.startswith("/"):
                             link = f"https://visasponsor.jobs{link}"
@@ -65,20 +85,29 @@ class VisaSponsorJobRepository(JobRepository):
                                     break
                                     
                         if not matches_tag:
-                            continue
+                            return None
                             
-                        if job_id not in all_jobs:
-                            all_jobs[job_id] = Job(
-                                id=f"visasponsor_{job_id}",
-                                company=company,
-                                position=title,
-                                description="", # VisaSponsor UI doesn't show desc on listing
-                                url=link,
-                                location=location,
-                                apply_url=link,
-                                date=date,
-                                source="VisaSponsor.jobs"
-                            )
+                        # Fetch full description
+                        description = self._fetch_description(link, headers)
+                        
+                        return Job(
+                            id=f"visasponsor_{job_id}",
+                            company=company,
+                            position=title,
+                            description=description,
+                            url=link,
+                            location=location,
+                            apply_url=link,
+                            date=date,
+                            source="VisaSponsor.jobs"
+                        )
+                        
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                        results = executor.map(process_link, job_links)
+                        for job in results:
+                            if job and job.id not in all_jobs:
+                                all_jobs[job.id] = job
+                                
             except Exception as e:
                 print(f"Error fetching from visasponsor.jobs page {page}: {e}")
                 

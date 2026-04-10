@@ -4,6 +4,7 @@ from typing import List
 from src.domain.entities import Job
 from src.domain.interfaces import JobRepository
 import re
+import concurrent.futures
 
 class RelocateMeJobRepository(JobRepository):
     """
@@ -11,6 +12,24 @@ class RelocateMeJobRepository(JobRepository):
     URL: https://relocate.me
     Great source for jobs explicitly offering relocation packages and visa sponsorship.
     """
+    def _fetch_description(self, job_url: str, headers: dict) -> str:
+        try:
+            res = requests.get(job_url, headers=headers, timeout=10)
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, "html.parser")
+                # Relocate.me description usually in a specific div
+                desc_div = soup.find("div", class_="job__details")
+                if desc_div:
+                    return str(desc_div)
+                
+                # fallback
+                desc_div = soup.find("div", class_="job-description")
+                if desc_div:
+                    return str(desc_div)
+        except Exception:
+            pass
+        return ""
+
     def fetch_jobs(self, tag: str = "ios") -> List[Job]:
         tags = [t.strip().lower() for t in tag.replace(';', ',').replace('|', ',').split(',') if t.strip()]
         all_jobs = {}
@@ -28,14 +47,14 @@ class RelocateMeJobRepository(JobRepository):
                     soup = BeautifulSoup(response.text, "html.parser")
                     job_cards = soup.find_all("div", class_="jobs-list__job")
                     
-                    for card in job_cards:
+                    def process_card(card):
                         title_div = card.find("div", class_="job__title")
                         if not title_div:
-                            continue
+                            return None
                             
                         a_tag = title_div.find("a")
                         if not a_tag:
-                            continue
+                            return None
                             
                         link = a_tag["href"]
                         if link.startswith("/"):
@@ -76,20 +95,31 @@ class RelocateMeJobRepository(JobRepository):
                                 break
                                 
                         if not matches_tag:
-                            continue
+                            return None
                             
-                        if job_id not in all_jobs:
-                            all_jobs[job_id] = Job(
-                                id=f"relocateme_{job_id}",
-                                company=company,
-                                position=title,
-                                description=description,
-                                url=link,
-                                location=location,
-                                apply_url=link,
-                                date="", # Relocate.me doesn't clearly show date on listing page
-                                source="Relocate.me"
-                            )
+                        # Fetch full description
+                        full_desc = self._fetch_description(link, headers)
+                        if full_desc:
+                            description = full_desc
+                            
+                        return Job(
+                            id=f"relocateme_{job_id}",
+                            company=company,
+                            position=title,
+                            description=description,
+                            url=link,
+                            location=location,
+                            apply_url=link,
+                            date="", # Relocate.me doesn't clearly show date on listing page
+                            source="Relocate.me"
+                        )
+                        
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                        results = executor.map(process_card, job_cards)
+                        for job in results:
+                            if job and job.id not in all_jobs:
+                                all_jobs[job.id] = job
+                                
             except Exception as e:
                 print(f"Error fetching from Relocate.me for '{current_tag}': {e}")
                 

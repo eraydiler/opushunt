@@ -4,12 +4,25 @@ from typing import List
 from src.domain.entities import Job
 from src.domain.interfaces import JobRepository
 import re
+import concurrent.futures
 
 class FindAJobDWPJobRepository(JobRepository):
     """
     Fetches jobs from findajob.dwp.gov.uk (UK Government job search).
     URL: https://findajob.dwp.gov.uk
     """
+    def _fetch_description(self, job_url: str, headers: dict) -> str:
+        try:
+            res = requests.get(job_url, headers=headers, timeout=10)
+            if res.status_code == 200:
+                soup = BeautifulSoup(res.text, "html.parser")
+                desc_div = soup.find("div", attrs={"itemprop": "description"})
+                if desc_div:
+                    return str(desc_div)
+        except Exception:
+            pass
+        return ""
+
     def fetch_jobs(self, tag: str = "ios") -> List[Job]:
         tags = [t.strip().lower() for t in tag.replace(';', ',').replace('|', ',').split(',') if t.strip()]
         all_jobs = {}
@@ -27,10 +40,11 @@ class FindAJobDWPJobRepository(JobRepository):
                     soup = BeautifulSoup(response.text, "html.parser")
                     job_cards = soup.find_all("div", class_="search-result")
                     
-                    for card in job_cards:
+                    # We will fetch full descriptions in parallel
+                    def process_card(card):
                         a_tag = card.find("a")
                         if not a_tag:
-                            continue
+                            return None
                             
                         title = a_tag.get_text(strip=True)
                         link = a_tag["href"]
@@ -54,21 +68,30 @@ class FindAJobDWPJobRepository(JobRepository):
                             elif len(parts) == 1:
                                 company = parts[0]
                                 
-                        desc_p = card.find("p", class_="search-result-description")
-                        description = desc_p.get_text(strip=True) if desc_p else ""
+                        # Fetch full description instead of summary
+                        description = self._fetch_description(link, headers)
+                        if not description:
+                            desc_p = card.find("p", class_="search-result-description")
+                            description = str(desc_p) if desc_p else ""
                         
-                        if job_id not in all_jobs:
-                            all_jobs[job_id] = Job(
-                                id=f"findajob_{job_id}",
-                                company=company,
-                                position=title,
-                                description=description,
-                                url=link,
-                                location=location,
-                                apply_url=link,
-                                date=date,
-                                source="FindAJob DWP"
-                            )
+                        return Job(
+                            id=f"findajob_{job_id}",
+                            company=company,
+                            position=title,
+                            description=description,
+                            url=link,
+                            location=location,
+                            apply_url=link,
+                            date=date,
+                            source="FindAJob DWP"
+                        )
+                        
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
+                        results = executor.map(process_card, job_cards)
+                        for job in results:
+                            if job and job.id not in all_jobs:
+                                all_jobs[job.id] = job
+                                
             except Exception as e:
                 print(f"Error fetching from findajob.dwp.gov.uk for '{current_tag}': {e}")
                 
