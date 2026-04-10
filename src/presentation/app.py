@@ -19,6 +19,9 @@ from src.infrastructure.repositories.arbeitnow_repo import ArbeitnowJobRepositor
 from src.infrastructure.repositories.jobicy_repo import JobicyJobRepository
 from src.infrastructure.repositories.thehub_repo import TheHubJobRepository
 from src.infrastructure.repositories.hn_repo import HackerNewsJobRepository
+from src.infrastructure.repositories.findajobdwp_repo import FindAJobDWPJobRepository
+from src.infrastructure.repositories.huntukvisasponsors_repo import HuntUKVisaSponsorsJobRepository
+from src.infrastructure.repositories.visasponsor_repo import VisaSponsorJobRepository
 import src.infrastructure.repositories.csv_repo as csv_repo_module
 # Force reload to ensure latest class definition is used
 importlib.reload(csv_repo_module)
@@ -38,6 +41,9 @@ arbeitnow_repo = ArbeitnowJobRepository()
 jobicy_repo = JobicyJobRepository()
 thehub_repo = TheHubJobRepository()
 hn_repo = HackerNewsJobRepository()
+findajobdwp_repo = FindAJobDWPJobRepository()
+huntuk_repo = HuntUKVisaSponsorsJobRepository()
+visasponsor_repo = VisaSponsorJobRepository()
 
 app_repo = SessionApplicationRepository()
 llm_service = GeminiLLMService()
@@ -52,6 +58,9 @@ AVAILABLE_PLATFORMS = {
     "Jobicy": jobicy_repo,
     "TheHub": thehub_repo,
     "Hacker News": hn_repo,
+    "FindAJob DWP": findajobdwp_repo,
+    "Hunt UK Visa Sponsors": huntuk_repo,
+    "VisaSponsor.jobs": visasponsor_repo,
     # "LinkedIn": None, # Placeholder for future
 }
 
@@ -99,7 +108,10 @@ platforms_list = [
     "Arbeitnow",
     "Jobicy",
     "TheHub",
-    "Hacker News"
+    "Hacker News",
+    "FindAJob DWP",
+    "Hunt UK Visa Sponsors",
+    "VisaSponsor.jobs"
 ]
 for p in platforms_list:
     if f"platform_{p}" not in st.session_state:
