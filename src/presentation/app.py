@@ -99,7 +99,7 @@ st.set_page_config(page_title="OpusHunt | Find Your Masterpiece", page_icon="ðŸŽ
 if "resume_content" not in st.session_state:
     st.session_state["resume_content"] = ""
 if "search_keywords" not in st.session_state:
-    st.session_state["search_keywords"] = "ios, swift"
+    st.session_state["search_keywords"] = ""
 if "use_ai_filter" not in st.session_state:
     st.session_state["use_ai_filter"] = True
     
@@ -212,7 +212,7 @@ with st.sidebar:
     # Keywords
     st.subheader("Keywords")
     # Bind to session_state key
-    search_tag = st.text_input("Enter tags (comma separated)", key="search_keywords")
+    search_tag = st.text_input("Enter tags (comma separated)", key="search_keywords", placeholder="e.g. ios, swift")
     
     st.divider()
     st.header("ðŸ§  Smart Features")
@@ -360,7 +360,7 @@ with export_placeholder.container():
     # Export
     session_data = {
         "resume_content": st.session_state.get("resume_content", ""),
-        "search_keywords": st.session_state.get("search_keywords", "ios, swift"),
+        "search_keywords": st.session_state.get("search_keywords", ""),
         "application_history": apply_job_uc.get_history(),
         "use_ai_filter": st.session_state.get("use_ai_filter", True),
         "platform_states": {p: st.session_state.get(f"platform_{p}", True) for p in platforms_list}
