@@ -23,6 +23,7 @@ from src.infrastructure.repositories.findajobdwp_repo import FindAJobDWPJobRepos
 from src.infrastructure.repositories.huntukvisasponsors_repo import HuntUKVisaSponsorsJobRepository
 from src.infrastructure.repositories.visasponsor_repo import VisaSponsorJobRepository
 from src.infrastructure.repositories.relocateme_repo import RelocateMeJobRepository
+from src.infrastructure.repositories.swissdevjobs_repo import SwissDevJobsRepository
 import src.infrastructure.repositories.csv_repo as csv_repo_module
 # Force reload to ensure latest class definition is used
 importlib.reload(csv_repo_module)
@@ -46,6 +47,7 @@ findajobdwp_repo = FindAJobDWPJobRepository()
 huntuk_repo = HuntUKVisaSponsorsJobRepository()
 visasponsor_repo = VisaSponsorJobRepository()
 relocateme_repo = RelocateMeJobRepository()
+swissdevjobs_repo = SwissDevJobsRepository()
 
 app_repo = SessionApplicationRepository()
 llm_service = GeminiLLMService()
@@ -64,6 +66,7 @@ AVAILABLE_PLATFORMS = {
     "Hunt UK Visa Sponsors": huntuk_repo,
     "VisaSponsor.jobs": visasponsor_repo,
     "Relocate.me": relocateme_repo,
+    "SwissDevJobs": swissdevjobs_repo,
     # "LinkedIn": None, # Placeholder for future
 }
 
@@ -115,7 +118,8 @@ platforms_list = [
     "FindAJob DWP",
     "Hunt UK Visa Sponsors",
     "VisaSponsor.jobs",
-    "Relocate.me"
+    "Relocate.me",
+    "SwissDevJobs"
 ]
 for p in platforms_list:
     if f"platform_{p}" not in st.session_state:
