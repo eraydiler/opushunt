@@ -24,20 +24,29 @@ from src.infrastructure.repositories.huntukvisasponsors_repo import HuntUKVisaSp
 from src.infrastructure.repositories.visasponsor_repo import VisaSponsorJobRepository
 from src.infrastructure.repositories.relocateme_repo import RelocateMeJobRepository
 from src.infrastructure.repositories.swissdevjobs_repo import SwissDevJobsRepository
+from src.infrastructure.repositories.jobgether_repo import JobgetherJobRepository
 import src.infrastructure.repositories.csv_repo as csv_repo_module
+
 # Force reload to ensure latest class definition is used
 importlib.reload(csv_repo_module)
 from src.infrastructure.repositories.csv_repo import SessionApplicationRepository
 from src.infrastructure.services.gemini_service import GeminiLLMService
 from src.infrastructure.services.pdf_service import PDFService
-from src.application.use_cases import SearchJobsUseCase, GenerateCoverLetterUseCase, ApplyJobUseCase, AIFilterJobsUseCase
+from src.application.use_cases import (
+    SearchJobsUseCase,
+    GenerateCoverLetterUseCase,
+    ApplyJobUseCase,
+    AIFilterJobsUseCase,
+)
 
 # --- Setup & Injection ---
 load_dotenv()
 
 # Repositories & Services
 remoteok_repo = RemoteOKJobRepository()
-weworkremotely_repo = RSSJobRepository(feed_url="https://weworkremotely.com/categories/remote-programming-jobs.rss", platform_name="WeWorkRemotely")
+weworkremotely_repo = RSSJobRepository(
+    feed_url="https://weworkremotely.com/categories/remote-programming-jobs.rss", platform_name="WeWorkRemotely"
+)
 remotive_repo = RemotiveJobRepository()
 arbeitnow_repo = ArbeitnowJobRepository()
 jobicy_repo = JobicyJobRepository()
@@ -48,6 +57,7 @@ huntuk_repo = HuntUKVisaSponsorsJobRepository()
 visasponsor_repo = VisaSponsorJobRepository()
 relocateme_repo = RelocateMeJobRepository()
 swissdevjobs_repo = SwissDevJobsRepository()
+jobgether_repo = JobgetherJobRepository()
 
 app_repo = SessionApplicationRepository()
 llm_service = GeminiLLMService()
@@ -67,6 +77,7 @@ AVAILABLE_PLATFORMS = {
     "VisaSponsor.jobs": visasponsor_repo,
     "Relocate.me": relocateme_repo,
     "SwissDevJobs": swissdevjobs_repo,
+    "Jobgether": jobgether_repo,
     # "LinkedIn": None, # Placeholder for future
 }
 
@@ -75,12 +86,14 @@ generate_cl_uc = GenerateCoverLetterUseCase(llm_service)
 apply_job_uc = ApplyJobUseCase(app_repo)
 ai_filter_uc = AIFilterJobsUseCase(llm_service)
 
+
 # --- UI Helper Functions ---
 def load_resume():
     # Load from session state instead of file
-    if 'resume_content' in st.session_state:
-        return st.session_state['resume_content']
+    if "resume_content" in st.session_state:
+        return st.session_state["resume_content"]
     return ""
+
 
 def clean_html_text(raw_html: str) -> str:
     """Removes HTML tags and unescapes HTML entities to fix garbled characters."""
@@ -91,8 +104,9 @@ def clean_html_text(raw_html: str) -> str:
     # Use BeautifulSoup to strip all HTML tags gracefully
     soup = BeautifulSoup(unescaped, "html.parser")
     # Get text, separating blocks with a space
-    clean_text = soup.get_text(separator=' ', strip=True)
+    clean_text = soup.get_text(separator=" ", strip=True)
     return clean_text
+
 
 # --- Streamlit App ---
 st.set_page_config(page_title="OpusHunt | Find Your Masterpiece", page_icon="🎯", layout="wide")
@@ -105,7 +119,7 @@ if "search_keywords" not in st.session_state:
     st.session_state["search_keywords"] = ""
 if "use_ai_filter" not in st.session_state:
     st.session_state["use_ai_filter"] = True
-    
+
 # Define available platforms for cleaner rendering
 platforms_list = [
     "RemoteOK",
@@ -119,7 +133,8 @@ platforms_list = [
     "Hunt UK Visa Sponsors",
     "VisaSponsor.jobs",
     "Relocate.me",
-    "SwissDevJobs"
+    "SwissDevJobs",
+    "Jobgether",
 ]
 for p in platforms_list:
     if f"platform_{p}" not in st.session_state:
@@ -129,28 +144,30 @@ for p in platforms_list:
 if "uploaded_session_file" not in st.session_state:
     st.session_state["uploaded_session_file"] = None
 
+
 def load_session_callback():
     uploaded_file = st.session_state.get("session_uploader")
     if uploaded_file is not None:
         try:
             data = json.load(uploaded_file)
-            
+
             # Update Session State
             st.session_state["resume_content"] = data.get("resume_content", "")
             st.session_state["search_keywords"] = data.get("search_keywords", "")
             st.session_state["use_ai_filter"] = data.get("use_ai_filter", True)
-            
+
             p_states = data.get("platform_states", {})
             for p, state in p_states.items():
                 st.session_state[f"platform_{p}"] = state
-                
+
             history = data.get("application_history", [])
-            if hasattr(app_repo, 'load_history'):
+            if hasattr(app_repo, "load_history"):
                 app_repo.load_history(history)
-            
+
             st.toast("Session loaded successfully! 🎉", icon="✅")
         except Exception as e:
             st.error(f"Error loading session: {e}")
+
 
 st.title("🎯 OpusHunt")
 st.markdown("Find the job that fits your masterpiece.")
@@ -158,47 +175,44 @@ st.markdown("Find the job that fits your masterpiece.")
 # Sidebar: Configuration & Resume
 with st.sidebar:
     st.header("👤 Your Profile")
-    
+
     # Session Management (Moved to top for better UX)
     with st.expander("💾 Session Management", expanded=False):
         st.info("Save/Restore workspace (CV, History, Settings).")
-        
+
         # Import
         st.file_uploader(
-            "Import Session (JSON)", 
-            type=["json"], 
-            key="session_uploader", 
-            on_change=load_session_callback
+            "Import Session (JSON)", type=["json"], key="session_uploader", on_change=load_session_callback
         )
-        
+
         # Placeholder for Export Button (populated at the end of script)
         export_placeholder = st.empty()
-    
+
     st.divider()
-    
+
     # File Uploader for PDF
     uploaded_file = st.file_uploader("Upload Resume (PDF)", type=["pdf"])
-    
+
     current_resume = load_resume()
-    
+
     if uploaded_file is not None:
         with st.spinner("Extracting text from PDF..."):
             extracted_text = pdf_service.extract_text(uploaded_file.getvalue())
             if extracted_text:
                 current_resume = extracted_text
-                st.session_state["resume_content"] = current_resume # Update state directly
+                st.session_state["resume_content"] = current_resume  # Update state directly
                 st.success("PDF loaded successfully!")
-    
+
     # Resume Text Area (Bound to session state)
     st.text_area("Resume Content (Editable)", key="resume_content", height=300)
-    
+
     st.divider()
     st.header("⚙️ Search Settings")
-    
+
     # Platform Selection
     st.subheader("Platforms")
     selected_platform_names = []
-    
+
     # Dynamic column distribution
     cols = st.columns(2)
     for i, platform in enumerate(platforms_list):
@@ -208,19 +222,23 @@ with st.sidebar:
             platform_key = f"platform_{platform}"
             if st.checkbox(platform, key=platform_key):
                 selected_platform_names.append(platform)
-                
+
     # Future placeholder
     with cols[1]:
         st.checkbox("LinkedIn (Soon)", value=False, disabled=True)
-            
+
     # Keywords
     st.subheader("Keywords")
     # Bind to session_state key
     search_tag = st.text_input("Enter tags (comma separated)", key="search_keywords", placeholder="e.g. ios, swift")
-    
+
     st.divider()
     st.header("🧠 Smart Features")
-    use_ai_filter = st.checkbox("AI Smart Filter", help="Uses Gemini to read the job description and compare it with your CV. Hides irrelevant jobs like HR, QA, Customer Success. (Takes a bit longer to fetch)", key="use_ai_filter")
+    use_ai_filter = st.checkbox(
+        "AI Smart Filter",
+        help="Uses Gemini to read the job description and compare it with your CV. Hides irrelevant jobs like HR, QA, Customer Success. (Takes a bit longer to fetch)",
+        key="use_ai_filter",
+    )
 
 # Main Content
 tab1, tab2 = st.tabs(["🔍 Search Jobs", "📜 Application History"])
@@ -232,10 +250,10 @@ with tab1:
         st.markdown("**Active Platforms:**")
         for p in selected_platform_names:
             st.caption(f"✅ {p}")
-            
+
     with active_filters_cols[1]:
         st.markdown("**Active Keywords:**")
-        tags = [t.strip() for t in search_tag.split(',') if t.strip()]
+        tags = [t.strip() for t in search_tag.split(",") if t.strip()]
         if tags:
             st.markdown(" ".join([f"`{t}`" for t in tags]))
         else:
@@ -245,78 +263,80 @@ with tab1:
 
     if st.button("Fetch Jobs", type="primary"):
         # Explicitly clear the jobs from session state before fetching new ones
-        if 'jobs' in st.session_state:
-            del st.session_state['jobs']
-            
+        if "jobs" in st.session_state:
+            del st.session_state["jobs"]
+
         if not selected_platform_names:
             st.warning("Please select at least one platform.")
         else:
             # Prepare Use Case with selected repos
-            selected_repos = [AVAILABLE_PLATFORMS[name] for name in selected_platform_names if AVAILABLE_PLATFORMS.get(name)]
+            selected_repos = [
+                AVAILABLE_PLATFORMS[name] for name in selected_platform_names if AVAILABLE_PLATFORMS.get(name)
+            ]
             search_jobs_uc = SearchJobsUseCase(selected_repos)
-            
+
             with st.spinner(f"Fetching jobs from {', '.join(selected_platform_names)}..."):
                 jobs = search_jobs_uc.execute(search_tag)
-                
+
             if use_ai_filter and jobs:
                 # Use session state for resume content
                 resume_text = st.session_state.get("resume_content", "")
                 with st.spinner(f"🤖 AI is analyzing {len(jobs)} jobs to find the best match for your CV..."):
                     resume_obj = Resume(content=resume_text)
                     jobs = ai_filter_uc.execute(jobs, resume_obj, search_tag)
-                    
-            st.session_state['jobs'] = jobs
+
+            st.session_state["jobs"] = jobs
             st.success(f"Found {len(jobs)} jobs.")
 
-    if 'jobs' in st.session_state:
+    if "jobs" in st.session_state:
         # Get history to check for duplicates
         history = apply_job_uc.get_history()
         # Create a set of applied job URLs for fast lookup
         applied_urls = set()
         for h in history:
-            if h.get('URL'):
-                applied_urls.add(h.get('URL'))
-        
-        for job in st.session_state['jobs']:
+            if h.get("URL"):
+                applied_urls.add(h.get("URL"))
+
+        for job in st.session_state["jobs"]:
             # Skip invalid/empty jobs
             if not job.position or job.position == "Unknown" or not job.company:
                 continue
-                
+
             # Safely get source to prevent AttributeError from old cached objects
-            job_source = getattr(job, 'source', 'Unknown')
-            job_date = getattr(job, 'date', None)
-            
+            job_source = getattr(job, "source", "Unknown")
+            job_date = getattr(job, "date", None)
+
             # Check if applied
             is_applied = job.url in applied_urls
-            
+
             # Visual Indicator for Applied Jobs
             if is_applied:
-                 expander_title = f"✅ {job.position} @ {job.company} ({job_source})"
+                expander_title = f"✅ {job.position} @ {job.company} ({job_source})"
             else:
-                 expander_title = f"{job.position} @ {job.company} ({job_source})"
-            
+                expander_title = f"{job.position} @ {job.company} ({job_source})"
+
             # Keep expanded if a cover letter is being drafted
             should_expand = f"cl_{job.id}" in st.session_state
-            
+
             with st.expander(expander_title, expanded=should_expand):
                 if is_applied:
                     st.success("You have already applied to this position! (Check History)")
-                    
+
                 col1, col2 = st.columns([3, 1])
                 with col1:
                     st.markdown(f"**Location:** {job.location}")
                 with col2:
                     st.markdown(f"[Apply Now 🚀]({job.url})")
-                
+
                 # Description Handling
                 if job.description:
                     # Create a tabbed view for Summary (Text) and Full (HTML)
                     tab_summary, tab_full = st.tabs(["📝 Summary", "📄 Full Description"])
-                    
+
                     with tab_summary:
                         clean_desc = clean_html_text(job.description)
                         st.write(clean_desc[:500] + "..." if len(clean_desc) > 500 else clean_desc)
-                    
+
                     with tab_full:
                         # Render HTML safely
                         st.markdown(job.description, unsafe_allow_html=True)
@@ -324,7 +344,7 @@ with tab1:
                     st.info("No description available.")
 
                 st.divider()
-                
+
                 if st.button("Generate Cover Letter", key=f"btn_{job.id}"):
                     # Use session state for resume content
                     resume_text = st.session_state.get("resume_content", "")
@@ -333,12 +353,14 @@ with tab1:
                         letter = generate_cl_uc.execute(job, resume_obj)
                         st.session_state[f"cl_{job.id}"] = letter
                         st.rerun()
-                
+
                 # Show Cover Letter if generated
                 if f"cl_{job.id}" in st.session_state:
                     st.subheader("📝 Draft Cover Letter")
-                    st.text_area("Edit before applying:", value=st.session_state[f"cl_{job.id}"], height=200, key=f"txt_{job.id}")
-                    
+                    st.text_area(
+                        "Edit before applying:", value=st.session_state[f"cl_{job.id}"], height=200, key=f"txt_{job.id}"
+                    )
+
                     if st.button("Mark as Applied ✅", key=f"apply_{job.id}"):
                         apply_job_uc.execute(job, status="Applied")
                         st.success(f"Application recorded for {job.company}!")
@@ -349,12 +371,12 @@ with tab1:
 with tab2:
     st.header("History")
     history = apply_job_uc.get_history()
-    
+
     if history:
         st.dataframe(history)
     else:
         st.info("No applications recorded yet.")
-        
+
     st.divider()
     # Old Import/Export features removed in favor of Full Session Management
     st.caption("Use the 'Session Management' in the sidebar to backup/restore your history along with settings.")
@@ -367,13 +389,9 @@ with export_placeholder.container():
         "search_keywords": st.session_state.get("search_keywords", ""),
         "application_history": apply_job_uc.get_history(),
         "use_ai_filter": st.session_state.get("use_ai_filter", True),
-        "platform_states": {p: st.session_state.get(f"platform_{p}", True) for p in platforms_list}
+        "platform_states": {p: st.session_state.get(f"platform_{p}", True) for p in platforms_list},
     }
     json_str = json.dumps(session_data, indent=2)
     st.download_button(
-        label="Export Session (JSON)",
-        data=json_str,
-        file_name="opushunt_session.json",
-        mime="application/json"
+        label="Export Session (JSON)", data=json_str, file_name="opushunt_session.json", mime="application/json"
     )
-
