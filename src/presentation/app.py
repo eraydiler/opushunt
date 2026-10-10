@@ -3,7 +3,6 @@ import os
 import sys
 import html
 import json
-import pandas as pd
 import importlib
 from bs4 import BeautifulSoup
 

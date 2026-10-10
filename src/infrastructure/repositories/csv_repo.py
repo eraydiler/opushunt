@@ -1,10 +1,9 @@
-import os
-import csv
 import streamlit as st
 from datetime import datetime
 from typing import List
 from src.domain.entities import Job
 from src.domain.interfaces import ApplicationRepository
+
 
 class SessionApplicationRepository(ApplicationRepository):
     """
@@ -33,7 +32,7 @@ class SessionApplicationRepository(ApplicationRepository):
         """Imports history from an external source (e.g., CSV upload)."""
         if 'application_history' not in st.session_state:
             st.session_state['application_history'] = []
-            
+
         # Optional: Check for duplicates before appending?
         # For simplicity, we just extend. User can clear history by refreshing page.
         st.session_state['application_history'].extend(history)

@@ -6,6 +6,7 @@ from src.domain.interfaces import JobRepository
 import re
 import concurrent.futures
 
+
 class VisaSponsorJobRepository(JobRepository):
     """
     Fetches jobs from visasponsor.jobs
@@ -36,9 +37,9 @@ class VisaSponsorJobRepository(JobRepository):
         headers = {
             "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
         }
-        
+
         print(f"Fetching jobs from visasponsor.jobs...")
-        
+
         # They don't have a direct search API by keyword, so we'll just fetch recent jobs and filter locally
         # Fetching first 2 pages
         for page in range(2):
@@ -48,21 +49,21 @@ class VisaSponsorJobRepository(JobRepository):
                 if response.status_code == 200:
                     soup = BeautifulSoup(response.text, "html.parser")
                     job_links = soup.find_all("a", href=lambda h: h and h.startswith("/api/jobs/") and len(h.split("/")) > 3)
-                    
+
                     def process_link(a_tag):
                         link = a_tag["href"]
                         if link.startswith("/"):
                             link = f"https://visasponsor.jobs{link}"
-                            
+
                         job_id = link.split("/")[5] if len(link.split("/")) > 5 else link.split("/")[-1]
-                        
+
                         texts = [t.strip() for t in a_tag.get_text(separator="|", strip=True).split("|") if t.strip()]
-                        
+
                         title = "Unknown"
                         company = "Unknown"
                         location = "Unknown"
                         date = ""
-                        
+
                         if len(texts) >= 5:
                             title = texts[0]
                             company = texts[1]
@@ -71,7 +72,7 @@ class VisaSponsorJobRepository(JobRepository):
                         elif len(texts) >= 2:
                             title = texts[0]
                             company = texts[1]
-                            
+
                         # Strict local filtering
                         text_to_search = (title + " " + company).lower()
                         matches_tag = False
@@ -83,13 +84,13 @@ class VisaSponsorJobRepository(JobRepository):
                                 if re.search(pattern, text_to_search, re.IGNORECASE):
                                     matches_tag = True
                                     break
-                                    
+
                         if not matches_tag:
                             return None
-                            
+
                         # Fetch full description
                         description = self._fetch_description(link, headers)
-                        
+
                         return Job(
                             id=f"visasponsor_{job_id}",
                             company=company,
@@ -101,14 +102,14 @@ class VisaSponsorJobRepository(JobRepository):
                             date=date,
                             source="VisaSponsor.jobs"
                         )
-                        
+
                     with concurrent.futures.ThreadPoolExecutor(max_workers=10) as executor:
                         results = executor.map(process_link, job_links)
                         for job in results:
                             if job and job.id not in all_jobs:
                                 all_jobs[job.id] = job
-                                
+
             except Exception as e:
                 print(f"Error fetching from visasponsor.jobs page {page}: {e}")
-                
+
         return list(all_jobs.values())

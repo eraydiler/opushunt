@@ -1,6 +1,7 @@
 import io
 from pypdf import PdfReader
 
+
 class PDFService:
     def extract_text(self, file_bytes: bytes) -> str:
         """

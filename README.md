@@ -1,6 +1,6 @@
 # 🎯 OpusHunt
 
-**OpusHunt** is a smart job hunting aggregator designed for modern professionals, particularly focusing on remote, relocation, and visa-sponsored opportunities across the globe. 
+**OpusHunt** is a smart job hunting aggregator designed for modern professionals, particularly focusing on remote, relocation, and visa-sponsored opportunities across the globe.
 
 Instead of manually browsing dozens of different job boards, OpusHunt brings them all into one clean interface. It even utilizes **Gemini AI** to read your CV (PDF) and filter out irrelevant positions (like HR, QA, Customer Success when you are looking for iOS roles) from the search results, saving you hours of time.
 

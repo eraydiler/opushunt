@@ -1,5 +1,3 @@
-import types
-
 from src.infrastructure.repositories.jobgether_repo import JobgetherJobRepository
 
 
