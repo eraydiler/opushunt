@@ -133,6 +133,12 @@ if "search_language" not in st.session_state:
     st.session_state["search_language"] = ""
 if "use_ai_filter" not in st.session_state:
     st.session_state["use_ai_filter"] = True
+if "filter_company" not in st.session_state:
+    st.session_state["filter_company"] = []
+if "filter_position" not in st.session_state:
+    st.session_state["filter_position"] = ""
+if "filter_location" not in st.session_state:
+    st.session_state["filter_location"] = []
 
 # Define available platforms for cleaner rendering
 platforms_list = [
@@ -153,11 +159,11 @@ platforms_list = [
     "Cognizant",
     "Europass",
 ]
-default_disabled_platforms = {"NAV Arbeidsplassen", "Cognizant"}
+
 for platform in platforms_list:
     platform_key = f"platform_{platform}"
     if platform_key not in st.session_state:
-        st.session_state[platform_key] = platform not in default_disabled_platforms
+        st.session_state[platform_key] = True  # Default all to True
 
 # Handle Session Import
 if "uploaded_session_file" not in st.session_state:
@@ -176,6 +182,9 @@ def load_session_callback():
             st.session_state["search_location"] = data.get("search_location", "")
             st.session_state["search_language"] = data.get("search_language", "")
             st.session_state["use_ai_filter"] = data.get("use_ai_filter", True)
+            st.session_state["filter_company"] = data.get("filter_company", [])
+            st.session_state["filter_position"] = data.get("filter_position", "")
+            st.session_state["filter_location"] = data.get("filter_location", [])
 
             p_states = data.get("platform_states", {})
             for p, state in p_states.items():
@@ -234,6 +243,12 @@ with st.sidebar:
     st.subheader("Platforms")
     selected_platform_names = []
 
+    # Initialize platform states if not present
+    for platform in platforms_list:
+        platform_key = f"platform_{platform}"
+        if platform_key not in st.session_state:
+            st.session_state[platform_key] = True  # Default to True
+
     # Dynamic column distribution
     cols = st.columns(2)
     for i, platform in enumerate(platforms_list):
@@ -264,6 +279,27 @@ with st.sidebar:
             "Short descriptions may be excluded."
         ),
     )
+
+    st.divider()
+    st.header("⚙️ Post-Search Filters")
+
+    jobs_in_session = st.session_state.get("jobs", [])
+    if jobs_in_session:
+        # Extract unique values for dropdowns
+        unique_companies = sorted(list(set(job.company for job in jobs_in_session if job.company)))
+        unique_locations = sorted(list(set(job.location for job in jobs_in_session if job.location)))
+
+        # Use multiselect for better filtering
+        filter_company = st.multiselect("Filter by Company", options=unique_companies, key="filter_company")
+        filter_location = st.multiselect("Filter by Location", options=unique_locations, key="filter_location")
+        # Position is usually too varied for a dropdown, but we can try or keep it as text
+        filter_position = st.text_input("Filter by Position", key="filter_position", placeholder="e.g. Developer")
+    else:
+        st.info("Search for jobs first to see available filters.")
+        # Keep keys in session state to avoid errors
+        st.session_state["filter_company"] = []
+        st.session_state["filter_location"] = []
+        st.session_state["filter_position"] = ""
 
     st.divider()
     st.header("🧠 Smart Features")
@@ -298,13 +334,27 @@ with tab1:
 
     st.divider()
 
-    if st.button("Fetch Jobs", type="primary"):
+    if "is_fetching" not in st.session_state:
+        st.session_state["is_fetching"] = False
+
+    if st.button("Fetch Jobs", type="primary", disabled=st.session_state["is_fetching"]):
+        st.session_state["is_fetching"] = True
+        st.rerun()
+
+    if st.session_state["is_fetching"]:
         # Explicitly clear the jobs from session state before fetching new ones
         if "jobs" in st.session_state:
             del st.session_state["jobs"]
+        
+        # Clear filters in session state
+        st.session_state["filter_company"] = []
+        st.session_state["filter_location"] = []
+        st.session_state["filter_position"] = ""
 
         if not selected_platform_names:
             st.warning("Please select at least one platform.")
+            st.session_state["is_fetching"] = False
+            st.rerun()
         else:
             # Prepare Use Case with selected repos
             selected_repos = [
@@ -332,8 +382,27 @@ with tab1:
 
             st.session_state["jobs"] = jobs
             st.success(f"Found {len(jobs)} jobs.")
+            st.session_state["is_fetching"] = False
+            st.rerun()
 
     if "jobs" in st.session_state:
+        # Apply Post-Search Filters
+        f_companies = st.session_state.get("filter_company", [])
+        f_locations = st.session_state.get("filter_location", [])
+        f_position = st.session_state.get("filter_position", "").strip().lower()
+
+        filtered_jobs = []
+        for job in st.session_state["jobs"]:
+            if f_companies and job.company not in f_companies:
+                continue
+            if f_locations and job.location not in f_locations:
+                continue
+            if f_position and f_position not in job.position.lower():
+                continue
+            filtered_jobs.append(job)
+
+        st.caption(f"Showing {len(filtered_jobs)} of {len(st.session_state['jobs'])} jobs after filtering.")
+
         # Get history to check for duplicates
         history = apply_job_uc.get_history()
         # Create a set of applied job URLs for fast lookup
@@ -342,7 +411,7 @@ with tab1:
             if h.get("URL"):
                 applied_urls.add(h.get("URL"))
 
-        for job in st.session_state["jobs"]:
+        for job in filtered_jobs:
             # Skip invalid/empty jobs
             if not job.position or job.position == "Unknown" or not job.company:
                 continue
@@ -436,6 +505,9 @@ with export_placeholder.container():
         "search_language": st.session_state.get("search_language", ""),
         "application_history": apply_job_uc.get_history(),
         "use_ai_filter": st.session_state.get("use_ai_filter", True),
+        "filter_company": st.session_state.get("filter_company", []),
+        "filter_position": st.session_state.get("filter_position", ""),
+        "filter_location": st.session_state.get("filter_location", []),
         "platform_states": {p: st.session_state.get(f"platform_{p}", True) for p in platforms_list},
     }
     json_str = json.dumps(session_data, indent=2)
