@@ -25,7 +25,7 @@ class GeminiLLMService(LLMService):
             return "API Key missing. Cannot generate cover letter."
 
         prompt = f"""
-        You are an experienced iOS Developer. Write a professional, tailored cover letter for the following job application.
+        You are an experienced Professional Developer and Career Coach. Write a professional, tailored cover letter for the following job application.
 
         Resume:
         {resume.content}

@@ -87,8 +87,7 @@ AVAILABLE_PLATFORMS = {
     "Jobgether": jobgether_repo,
     "NAV Arbeidsplassen": nav_arbeidsplassen_repo,
     "Cognizant": cognizant_repo,
-    "Europass": europass_repo,
-    # "LinkedIn": None, # Placeholder for future
+    "Europass": europass_repo
 }
 
 # Use Cases (Initialized dynamically in UI)
@@ -259,10 +258,6 @@ with st.sidebar:
             if st.checkbox(platform, key=platform_key):
                 selected_platform_names.append(platform)
 
-    # Future placeholder
-    with cols[1]:
-        st.checkbox("LinkedIn (Soon)", value=False, disabled=True)
-
     # Keywords
     st.subheader("Keywords")
     # Bind to session_state key
@@ -345,7 +340,7 @@ with tab1:
         # Explicitly clear the jobs from session state before fetching new ones
         if "jobs" in st.session_state:
             del st.session_state["jobs"]
-        
+
         # Clear filters in session state
         st.session_state["filter_company"] = []
         st.session_state["filter_location"] = []
