@@ -126,6 +126,8 @@ if "search_keywords" not in st.session_state:
     st.session_state["search_keywords"] = ""
 if "search_location" not in st.session_state:
     st.session_state["search_location"] = ""
+if "search_language" not in st.session_state:
+    st.session_state["search_language"] = ""
 if "use_ai_filter" not in st.session_state:
     st.session_state["use_ai_filter"] = True
 
@@ -168,6 +170,7 @@ def load_session_callback():
             st.session_state["resume_content"] = data.get("resume_content", "")
             st.session_state["search_keywords"] = data.get("search_keywords", "")
             st.session_state["search_location"] = data.get("search_location", "")
+            st.session_state["search_language"] = data.get("search_language", "")
             st.session_state["use_ai_filter"] = data.get("use_ai_filter", True)
 
             p_states = data.get("platform_states", {})
@@ -248,6 +251,15 @@ with st.sidebar:
     search_location = st.text_input(
         "Location (optional)", key="search_location", placeholder="e.g. Norway, London"
     )
+    search_language = st.text_input(
+        "Language (optional)",
+        key="search_language",
+        placeholder="e.g. English, Norwegian, en",
+        help=(
+            "Filters by detected language in the job description. "
+            "Short descriptions may be excluded."
+        ),
+    )
 
     st.divider()
     st.header("🧠 Smart Features")
@@ -277,6 +289,8 @@ with tab1:
             st.caption("No keywords entered")
         if search_location.strip():
             st.caption(f"Location: {search_location.strip()} (remote jobs included)")
+        if search_language.strip():
+            st.caption(f"Language: {search_language.strip()}")
 
     st.divider()
 
@@ -295,7 +309,15 @@ with tab1:
             search_jobs_uc = SearchJobsUseCase(selected_repos)
 
             with st.spinner(f"Fetching jobs from {', '.join(selected_platform_names)}..."):
-                jobs = search_jobs_uc.execute(search_tag, location=search_location)
+                try:
+                    jobs = search_jobs_uc.execute(
+                        search_tag,
+                        location=search_location,
+                        language=search_language,
+                    )
+                except ValueError as error:
+                    st.error(str(error))
+                    jobs = []
 
             if use_ai_filter and jobs:
                 # Use session state for resume content
@@ -407,6 +429,7 @@ with export_placeholder.container():
         "resume_content": st.session_state.get("resume_content", ""),
         "search_keywords": st.session_state.get("search_keywords", ""),
         "search_location": st.session_state.get("search_location", ""),
+        "search_language": st.session_state.get("search_language", ""),
         "application_history": apply_job_uc.get_history(),
         "use_ai_filter": st.session_state.get("use_ai_filter", True),
         "platform_states": {p: st.session_state.get(f"platform_{p}", True) for p in platforms_list},

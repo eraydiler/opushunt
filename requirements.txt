@@ -3,6 +3,7 @@ google-genai
 python-dotenv
 requests
 beautifulsoup4
+langdetect
 pypdf
 pandas
 pytest
