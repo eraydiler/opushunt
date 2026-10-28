@@ -28,6 +28,7 @@ from src.infrastructure.repositories.nav_arbeidsplassen_repo import (
     NavArbeidsplassenJobRepository,
 )
 from src.infrastructure.repositories.cognizant_repo import CognizantJobRepository
+from src.infrastructure.repositories.europass_repo import EuropassJobRepository
 import src.infrastructure.repositories.csv_repo as csv_repo_module
 
 # Force reload to ensure latest class definition is used
@@ -63,6 +64,7 @@ swissdevjobs_repo = SwissDevJobsRepository()
 jobgether_repo = JobgetherJobRepository()
 nav_arbeidsplassen_repo = NavArbeidsplassenJobRepository()
 cognizant_repo = CognizantJobRepository()
+europass_repo = EuropassJobRepository()
 
 app_repo = SessionApplicationRepository()
 llm_service = GeminiLLMService()
@@ -85,6 +87,7 @@ AVAILABLE_PLATFORMS = {
     "Jobgether": jobgether_repo,
     "NAV Arbeidsplassen": nav_arbeidsplassen_repo,
     "Cognizant": cognizant_repo,
+    "Europass": europass_repo,
     # "LinkedIn": None, # Placeholder for future
 }
 
@@ -148,6 +151,7 @@ platforms_list = [
     "Jobgether",
     "NAV Arbeidsplassen",
     "Cognizant",
+    "Europass",
 ]
 default_disabled_platforms = {"NAV Arbeidsplassen", "Cognizant"}
 for platform in platforms_list:
