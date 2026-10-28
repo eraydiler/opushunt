@@ -10,6 +10,14 @@ class MockJobRepository:
         return []
 
 
+class StaticJobRepository:
+    def __init__(self, jobs):
+        self.jobs = jobs
+
+    def fetch_jobs(self, tag: str):
+        return self.jobs
+
+
 class MockLLMService:
     def filter_relevant_jobs(self, jobs, resume, tags):
         # Simply return the first job as "relevant"
@@ -26,6 +34,115 @@ def test_search_jobs_use_case():
     # Should get results from both repos (2 total)
     assert len(results) == 2
     assert results[0].company == "Apple"
+
+
+def test_search_jobs_filters_location_across_repositories_and_keeps_remote():
+    london_job = Job(
+        id="london", company="Company A", position="iOS Engineer", description="Swift",
+        url="london-url",
+        location="London, UK",
+    )
+    oslo_job = Job(
+        id="oslo", company="Company B", position="iOS Engineer", description="Swift",
+        url="oslo-url",
+        location="Oslo, Norway",
+    )
+    remote_job = Job(
+        id="remote", company="Company C", position="iOS Engineer", description="Swift",
+        url="remote-url",
+        location="Remote - United States",
+    )
+    use_case = SearchJobsUseCase(
+        repositories=[
+            StaticJobRepository([london_job]),
+            StaticJobRepository([oslo_job, remote_job]),
+        ]
+    )
+
+    results = use_case.execute("ios", location="lOnDoN")
+
+    assert [job.id for job in results] == ["london", "remote"]
+
+
+def test_search_jobs_without_location_keeps_all_results():
+    jobs = [
+        Job(
+            id="london", company="Company A", position="iOS Engineer",
+            description="Swift", url="london-url", location="London, UK",
+        ),
+        Job(
+            id="oslo", company="Company B", position="iOS Engineer",
+            description="Swift", url="oslo-url", location="Oslo, Norway",
+        ),
+    ]
+    use_case = SearchJobsUseCase(repositories=[StaticJobRepository(jobs)])
+
+    assert use_case.execute("ios") == jobs
+
+
+def test_search_jobs_filters_by_detected_description_language():
+    english_job = Job(
+        id="english",
+        company="Company A",
+        position="iOS Engineer",
+        description=(
+            "We are looking for an experienced iOS engineer to build and maintain "
+            "mobile applications. You will collaborate with designers and backend "
+            "engineers, write reliable Swift code, review pull requests, and improve "
+            "the quality and performance of our products. "
+        ) * 2,
+        url="english-url",
+    )
+    norwegian_job = Job(
+        id="norwegian",
+        company="Company B",
+        position="iOS-utvikler",
+        description=(
+            "Vi søker en erfaren iOS-utvikler som vil utvikle og vedlikeholde "
+            "mobilapplikasjoner. Du samarbeider med designere og utviklere, skriver "
+            "god Swift-kode, vurderer kodeendringer og forbedrer kvaliteten og "
+            "ytelsen på produktene våre. "
+        ) * 2,
+        url="norwegian-url",
+    )
+    use_case = SearchJobsUseCase(
+        repositories=[StaticJobRepository([english_job, norwegian_job])]
+    )
+
+    results = use_case.execute("ios", language="English")
+    norwegian_results = use_case.execute("ios", language="Norwegian")
+
+    assert [job.id for job in results] == ["english"]
+    assert [job.id for job in norwegian_results] == ["norwegian"]
+
+
+def test_search_jobs_accepts_language_code():
+    job = Job(
+        id="english",
+        company="Company A",
+        position="iOS Engineer",
+        description=(
+            "We are looking for an experienced iOS engineer to build and maintain "
+            "mobile applications. You will collaborate with designers and backend "
+            "engineers, write reliable Swift code, review pull requests, and improve "
+            "the quality and performance of our products. "
+        ) * 2,
+        url="english-url",
+    )
+    use_case = SearchJobsUseCase(repositories=[StaticJobRepository([job])])
+
+    assert use_case.execute("ios", language="en") == [job]
+
+
+def test_search_jobs_rejects_unrecognized_language_name():
+    use_case = SearchJobsUseCase(repositories=[])
+
+    try:
+        use_case.execute("ios", language="Klingon")
+    except ValueError as error:
+        assert "language name" in str(error)
+    else:
+        raise AssertionError("Expected an unsupported language name to be rejected")
 
 
 def test_ai_filter_use_case():

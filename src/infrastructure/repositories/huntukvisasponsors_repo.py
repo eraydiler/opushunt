@@ -18,7 +18,10 @@ class HuntUKVisaSponsorsJobRepository(JobRepository):
             if res.status_code == 200:
                 soup = BeautifulSoup(res.text, "html.parser")
 
-                # HuntUK job details are typically inside a max-w-[60ch] container
+                description = soup.select_one("div.prose.max-w-none")
+                if description:
+                    return str(description)
+
                 main_div = soup.find("div", class_=lambda c: c and "max-w-[60ch]" in c)
                 if main_div:
                     # The description is usually the child div with the most text
@@ -55,31 +58,22 @@ class HuntUKVisaSponsorsJobRepository(JobRepository):
                             link = f"https://huntukvisasponsors.com{link}"
 
                         job_id = link.split("/")[-1]
-
-                        parent = a_tag.parent
-                        texts = [t.strip() for t in parent.get_text(separator="|", strip=True).split("|") if t.strip()]
-
-                        title = "Unknown"
-                        company = "Unknown"
+                        title = " ".join(a_tag.get_text(" ", strip=True).split())
+                        card = a_tag.find_parent("div", class_=re.compile(r"grid-cols-"))
+                        company_link = (
+                            card.find(
+                                "a", href=re.compile(r"/company/")
+                            )
+                            if card
+                            else None
+                        )
+                        company = (
+                            company_link.get_text(" ", strip=True)
+                            if company_link
+                            else "Unknown"
+                        )
+                        location = self._extract_location(card)
                         description = ""
-                        location = "Unknown"
-                        date = ""
-
-                        if len(texts) >= 6:
-                            title = texts[0]
-                            company = texts[1]
-                            description = texts[3]
-                            location = texts[4]
-                            date = texts[5]
-                        elif len(texts) >= 5:
-                            title = texts[0]
-                            company = texts[1]
-                            description = texts[2]
-                            location = texts[3]
-                            date = texts[-1]
-                        elif len(texts) >= 3:
-                            title = texts[0]
-                            company = texts[1]
 
                         # Strict local filtering
                         text_to_search = (title + " " + description).lower()
@@ -106,7 +100,6 @@ class HuntUKVisaSponsorsJobRepository(JobRepository):
                             url=link,
                             location=location,
                             apply_url=link,
-                            date=date,
                             source="HuntUKVisaSponsors"
                         )
 
@@ -120,3 +113,15 @@ class HuntUKVisaSponsorsJobRepository(JobRepository):
                 print(f"Error fetching from huntukvisasponsors.com for '{current_tag}': {e}")
 
         return list(all_jobs.values())
+
+    def _extract_location(self, card) -> str:
+        if not card:
+            return "Unknown"
+
+        for span in card.find_all("span", recursive=False):
+            classes = span.get("class", [])
+            if "truncate" in classes and "sm:block" in classes:
+                location = " ".join(span.get_text(" ", strip=True).split())
+                if location:
+                    return location
+        return "Unknown"
