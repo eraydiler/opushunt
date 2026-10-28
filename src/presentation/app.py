@@ -24,6 +24,10 @@ from src.infrastructure.repositories.visasponsor_repo import VisaSponsorJobRepos
 from src.infrastructure.repositories.relocateme_repo import RelocateMeJobRepository
 from src.infrastructure.repositories.swissdevjobs_repo import SwissDevJobsRepository
 from src.infrastructure.repositories.jobgether_repo import JobgetherJobRepository
+from src.infrastructure.repositories.nav_arbeidsplassen_repo import (
+    NavArbeidsplassenJobRepository,
+)
+from src.infrastructure.repositories.cognizant_repo import CognizantJobRepository
 import src.infrastructure.repositories.csv_repo as csv_repo_module
 
 # Force reload to ensure latest class definition is used
@@ -57,6 +61,8 @@ visasponsor_repo = VisaSponsorJobRepository()
 relocateme_repo = RelocateMeJobRepository()
 swissdevjobs_repo = SwissDevJobsRepository()
 jobgether_repo = JobgetherJobRepository()
+nav_arbeidsplassen_repo = NavArbeidsplassenJobRepository()
+cognizant_repo = CognizantJobRepository()
 
 app_repo = SessionApplicationRepository()
 llm_service = GeminiLLMService()
@@ -77,6 +83,8 @@ AVAILABLE_PLATFORMS = {
     "Relocate.me": relocateme_repo,
     "SwissDevJobs": swissdevjobs_repo,
     "Jobgether": jobgether_repo,
+    "NAV Arbeidsplassen": nav_arbeidsplassen_repo,
+    "Cognizant": cognizant_repo,
     # "LinkedIn": None, # Placeholder for future
 }
 
@@ -116,6 +124,8 @@ if "resume_content" not in st.session_state:
     st.session_state["resume_content"] = ""
 if "search_keywords" not in st.session_state:
     st.session_state["search_keywords"] = ""
+if "search_location" not in st.session_state:
+    st.session_state["search_location"] = ""
 if "use_ai_filter" not in st.session_state:
     st.session_state["use_ai_filter"] = True
 
@@ -134,10 +144,14 @@ platforms_list = [
     "Relocate.me",
     "SwissDevJobs",
     "Jobgether",
+    "NAV Arbeidsplassen",
+    "Cognizant",
 ]
-for p in platforms_list:
-    if f"platform_{p}" not in st.session_state:
-        st.session_state[f"platform_{p}"] = True
+default_disabled_platforms = {"NAV Arbeidsplassen", "Cognizant"}
+for platform in platforms_list:
+    platform_key = f"platform_{platform}"
+    if platform_key not in st.session_state:
+        st.session_state[platform_key] = platform not in default_disabled_platforms
 
 # Handle Session Import
 if "uploaded_session_file" not in st.session_state:
@@ -153,6 +167,7 @@ def load_session_callback():
             # Update Session State
             st.session_state["resume_content"] = data.get("resume_content", "")
             st.session_state["search_keywords"] = data.get("search_keywords", "")
+            st.session_state["search_location"] = data.get("search_location", "")
             st.session_state["use_ai_filter"] = data.get("use_ai_filter", True)
 
             p_states = data.get("platform_states", {})
@@ -230,6 +245,9 @@ with st.sidebar:
     st.subheader("Keywords")
     # Bind to session_state key
     search_tag = st.text_input("Enter tags (comma separated)", key="search_keywords", placeholder="e.g. ios, swift")
+    search_location = st.text_input(
+        "Location (optional)", key="search_location", placeholder="e.g. Norway, London"
+    )
 
     st.divider()
     st.header("🧠 Smart Features")
@@ -257,6 +275,8 @@ with tab1:
             st.markdown(" ".join([f"`{t}`" for t in tags]))
         else:
             st.caption("No keywords entered")
+        if search_location.strip():
+            st.caption(f"Location: {search_location.strip()} (remote jobs included)")
 
     st.divider()
 
@@ -275,7 +295,7 @@ with tab1:
             search_jobs_uc = SearchJobsUseCase(selected_repos)
 
             with st.spinner(f"Fetching jobs from {', '.join(selected_platform_names)}..."):
-                jobs = search_jobs_uc.execute(search_tag)
+                jobs = search_jobs_uc.execute(search_tag, location=search_location)
 
             if use_ai_filter and jobs:
                 # Use session state for resume content
@@ -386,6 +406,7 @@ with export_placeholder.container():
     session_data = {
         "resume_content": st.session_state.get("resume_content", ""),
         "search_keywords": st.session_state.get("search_keywords", ""),
+        "search_location": st.session_state.get("search_location", ""),
         "application_history": apply_job_uc.get_history(),
         "use_ai_filter": st.session_state.get("use_ai_filter", True),
         "platform_states": {p: st.session_state.get(f"platform_{p}", True) for p in platforms_list},

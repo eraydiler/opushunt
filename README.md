@@ -9,6 +9,7 @@ Instead of manually browsing dozens of different job boards, OpusHunt brings the
 * **Multi-Platform Aggregation:** Fetches jobs simultaneously from 10+ different job boards.
 * **Visa & Relocation Focus:** Includes specialized boards for UK visa sponsorships and global relocation packages.
 * **AI-Powered Filtering:** Upload your resume (PDF) and let Gemini AI evaluate the fit for each job description.
+* **Location Filtering:** Filter results from every source by a city or country while keeping remote jobs in the results.
 * **Application Tracking:** Built-in history to keep track of jobs you've already applied for, preventing duplicate efforts.
 * **Session Management:** Save your workspace (CV, History, Settings) locally to resume your hunt later.
 
@@ -24,9 +25,15 @@ OpusHunt currently aggregates jobs from the following platforms:
 * **TheHub** (Nordic/European Startups)
 * **Hacker News** ("Who is hiring?" threads)
 * **FindAJob DWP** (UK Government Official Job Search)
+* **NAV Arbeidsplassen** (Norwegian job listings)
+* **Cognizant Careers** (Global company vacancies)
 * **Hunt UK Visa Sponsors** (UK Visa Sponsored Jobs)
 * **VisaSponsor.jobs** (Global Visa Sponsored Jobs)
 * **Relocate.me** (Tech jobs with Relocation Packages)
+* **SwissDevJobs** (Swiss technology jobs)
+* **Jobgether** (Remote jobs)
+
+Use the optional location field in Search Settings to filter listings across all selected platforms. Leave it blank to show all locations; remote listings remain included when a location is set.
 
 ## 🚀 Getting Started
 
