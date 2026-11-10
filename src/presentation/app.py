@@ -344,6 +344,7 @@ with tab1:
         # Explicitly clear the jobs from session state before fetching new ones
         if "jobs" in st.session_state:
             del st.session_state["jobs"]
+        st.session_state["ai_filter_fallback"] = False
 
         # Clear filters in session state
         st.session_state["filter_company"] = []
@@ -377,7 +378,9 @@ with tab1:
                 resume_text = st.session_state.get("resume_content", "")
                 with st.spinner(f"🤖 AI is analyzing {len(jobs)} jobs to find the best match for your CV..."):
                     resume_obj = Resume(content=resume_text)
+                    unfiltered_jobs = jobs
                     jobs = ai_filter_uc.execute(jobs, resume_obj, search_tag)
+                    st.session_state["ai_filter_fallback"] = jobs is unfiltered_jobs
 
             st.session_state["jobs"] = jobs
             st.success(f"Found {len(jobs)} jobs.")
@@ -401,6 +404,11 @@ with tab1:
             filtered_jobs.append(job)
 
         st.caption(f"Showing {len(filtered_jobs)} of {len(st.session_state['jobs'])} jobs after filtering.")
+        if st.session_state.get("ai_filter_fallback", False):
+            st.warning(
+                "Gemini AI filtering could not be completed. Results are shown without AI filtering. "
+                "Check your API key, connection, quota, and terminal output."
+            )
 
         # Get history to check for duplicates
         history = apply_job_uc.get_history()
