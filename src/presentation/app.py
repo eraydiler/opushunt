@@ -336,20 +336,24 @@ with tab1:
     if "is_fetching" not in st.session_state:
         st.session_state["is_fetching"] = False
 
-    if st.button("Fetch Jobs", type="primary", disabled=st.session_state["is_fetching"]):
+    def start_fetch_jobs():
         st.session_state["is_fetching"] = True
-        st.rerun()
+        st.session_state["filter_company"] = []
+        st.session_state["filter_location"] = []
+        st.session_state["filter_position"] = ""
+
+    st.button(
+        "Fetch Jobs",
+        type="primary",
+        disabled=st.session_state["is_fetching"],
+        on_click=start_fetch_jobs,
+    )
 
     if st.session_state["is_fetching"]:
         # Explicitly clear the jobs from session state before fetching new ones
         if "jobs" in st.session_state:
             del st.session_state["jobs"]
         st.session_state["ai_filter_fallback"] = False
-
-        # Clear filters in session state
-        st.session_state["filter_company"] = []
-        st.session_state["filter_location"] = []
-        st.session_state["filter_position"] = ""
 
         if not selected_platform_names:
             st.warning("Please select at least one platform.")
@@ -472,6 +476,9 @@ with tab1:
                     resume_obj = Resume(content=resume_text)
                     with st.spinner("AI is writing your letter..."):
                         letter = generate_cl_uc.execute(job, resume_obj)
+                    if letter.startswith(("Error generating cover letter:", "API Key missing.")):
+                        st.error(letter)
+                    else:
                         st.session_state[f"cl_{job.id}"] = letter
                         st.rerun()
 

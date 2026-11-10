@@ -23,16 +23,23 @@ class FakeClient:
 
 def make_service(monkeypatch, models):
     monkeypatch.setenv("GEMINI_API_KEY", "test-key")
+    client_options = {}
+
+    def create_client(*, api_key, http_options):
+        client_options["api_key"] = api_key
+        client_options["http_options"] = http_options
+        return FakeClient(models)
+
     monkeypatch.setattr(
         gemini_service.genai,
         "Client",
-        lambda api_key: FakeClient(models),
+        create_client,
     )
-    return GeminiLLMService()
+    return GeminiLLMService(), client_options
 
 
 def test_ai_filter_returns_original_jobs_when_all_models_fail(monkeypatch):
-    service = make_service(monkeypatch, FakeModels(error=RuntimeError("API error")))
+    service, _ = make_service(monkeypatch, FakeModels(error=RuntimeError("API error")))
     jobs = [
         Job(
             id="job-1",
@@ -49,7 +56,7 @@ def test_ai_filter_returns_original_jobs_when_all_models_fail(monkeypatch):
 
 
 def test_ai_filter_returns_new_list_when_filtering_succeeds(monkeypatch):
-    service = make_service(monkeypatch, FakeModels())
+    service, _ = make_service(monkeypatch, FakeModels())
     jobs = [
         Job(
             id="job-1",
@@ -64,3 +71,11 @@ def test_ai_filter_returns_new_list_when_filtering_succeeds(monkeypatch):
 
     assert result == jobs
     assert result is not jobs
+
+
+def test_gemini_client_uses_bounded_timeout_without_retries(monkeypatch):
+    _, client_options = make_service(monkeypatch, FakeModels())
+
+    http_options = client_options["http_options"]
+    assert http_options.timeout == 30_000
+    assert http_options.retry_options.attempts == 1

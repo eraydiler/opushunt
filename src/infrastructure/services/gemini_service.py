@@ -2,6 +2,7 @@ import os
 import json
 from typing import List
 from google import genai
+from google.genai import types
 from src.domain.entities import Job, Resume
 from src.domain.interfaces import LLMService
 
@@ -11,7 +12,13 @@ class GeminiLLMService(LLMService):
         self.api_key = os.getenv("GEMINI_API_KEY")
         self.client = None
         if self.api_key:
-            self.client = genai.Client(api_key=self.api_key)
+            self.client = genai.Client(
+                api_key=self.api_key,
+                http_options=types.HttpOptions(
+                    timeout=30_000,
+                    retry_options=types.HttpRetryOptions(attempts=1),
+                ),
+            )
 
         # Models to try in order. 3.7 Flash is deprecated and redirects to 3.8.
         self.models = [
