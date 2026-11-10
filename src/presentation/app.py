@@ -303,6 +303,10 @@ with st.sidebar:
         help="Uses Gemini to read the job description and compare it with your CV. Hides irrelevant jobs like HR, QA, Customer Success. (Takes a bit longer to fetch)",
         key="use_ai_filter",
     )
+    st.caption(
+        "When AI filtering or cover-letter generation is used, resume text and relevant job details "
+        "are sent to Google's Gemini API using your own API key. Review Google's terms before use."
+    )
 
 # Main Content
 tab1, tab2 = st.tabs(["🔍 Search Jobs", "📜 Application History"])
@@ -332,19 +336,24 @@ with tab1:
     if "is_fetching" not in st.session_state:
         st.session_state["is_fetching"] = False
 
-    if st.button("Fetch Jobs", type="primary", disabled=st.session_state["is_fetching"]):
+    def start_fetch_jobs():
         st.session_state["is_fetching"] = True
-        st.rerun()
+        st.session_state["filter_company"] = []
+        st.session_state["filter_location"] = []
+        st.session_state["filter_position"] = ""
+
+    st.button(
+        "Fetch Jobs",
+        type="primary",
+        disabled=st.session_state["is_fetching"],
+        on_click=start_fetch_jobs,
+    )
 
     if st.session_state["is_fetching"]:
         # Explicitly clear the jobs from session state before fetching new ones
         if "jobs" in st.session_state:
             del st.session_state["jobs"]
-
-        # Clear filters in session state
-        st.session_state["filter_company"] = []
-        st.session_state["filter_location"] = []
-        st.session_state["filter_position"] = ""
+        st.session_state["ai_filter_fallback"] = False
 
         if not selected_platform_names:
             st.warning("Please select at least one platform.")
@@ -373,7 +382,9 @@ with tab1:
                 resume_text = st.session_state.get("resume_content", "")
                 with st.spinner(f"🤖 AI is analyzing {len(jobs)} jobs to find the best match for your CV..."):
                     resume_obj = Resume(content=resume_text)
+                    unfiltered_jobs = jobs
                     jobs = ai_filter_uc.execute(jobs, resume_obj, search_tag)
+                    st.session_state["ai_filter_fallback"] = jobs is unfiltered_jobs
 
             st.session_state["jobs"] = jobs
             st.success(f"Found {len(jobs)} jobs.")
@@ -397,6 +408,11 @@ with tab1:
             filtered_jobs.append(job)
 
         st.caption(f"Showing {len(filtered_jobs)} of {len(st.session_state['jobs'])} jobs after filtering.")
+        if st.session_state.get("ai_filter_fallback", False):
+            st.warning(
+                "Gemini AI filtering could not be completed. Results are shown without AI filtering. "
+                "Check your API key, connection, quota, and terminal output."
+            )
 
         # Get history to check for duplicates
         history = apply_job_uc.get_history()
@@ -460,6 +476,9 @@ with tab1:
                     resume_obj = Resume(content=resume_text)
                     with st.spinner("AI is writing your letter..."):
                         letter = generate_cl_uc.execute(job, resume_obj)
+                    if letter.startswith(("Error generating cover letter:", "API Key missing.")):
+                        st.error(letter)
+                    else:
                         st.session_state[f"cl_{job.id}"] = letter
                         st.rerun()
 
