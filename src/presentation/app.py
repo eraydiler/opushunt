@@ -303,6 +303,10 @@ with st.sidebar:
         help="Uses Gemini to read the job description and compare it with your CV. Hides irrelevant jobs like HR, QA, Customer Success. (Takes a bit longer to fetch)",
         key="use_ai_filter",
     )
+    st.caption(
+        "When AI filtering or cover-letter generation is used, resume text and relevant job details "
+        "are sent to Google's Gemini API using your own API key. Review Google's terms before use."
+    )
 
 # Main Content
 tab1, tab2 = st.tabs(["🔍 Search Jobs", "📜 Application History"])
