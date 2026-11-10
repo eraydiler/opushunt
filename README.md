@@ -138,4 +138,4 @@ The app retrieves data from third-party sources directly when run by a user. Use
 
 If you find OpusHunt useful, your support would mean a lot and help motivate me to keep improving this project. Support is entirely optional and does not include any product or service.
 
-[![Buy Me A Coffee](https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png)](https://www.buymeacoffee.com/d2vqt5wmcrw)
+<a href="https://www.buymeacoffee.com/d2vqt5wmcrw"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="220"></a>
